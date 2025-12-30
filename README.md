@@ -1,381 +1,298 @@
-# 🏢 KIOSK HR - SISTEMA GESTIONE RISORSE UMANE
+# 🏢 Sistema Kiosk HR - Adeverențe și Cereri Absență
+## Sistema di Gestione Certificati e Richieste Assenza
 
-## 📋 PANORAMICA
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/glctesta/kiosk-hr-adeverente)
+[![Python](https://img.shields.io/badge/python-3.11-green.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/flask-3.0-lightgrey.svg)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
 
-**Kiosk HR** è un'applicazione web moderna per la gestione self-service delle risorse umane, accessibile tramite badge RFID.
-
-### **✨ SERVIZI DISPONIBILI**
-
-| Servizio | Descrizione | Stato |
-|----------|-------------|-------|
-| 📄 **Adeverințe** | Generazione certificati medici e di lavoro | ✅ Attivo |
-| 📊 **Raport Absențe** | Report storico ferie, malattie e permessi | ✅ Attivo |
-| 🔧 **Serviciu 3** | In sviluppo | 🚧 Prossimamente |
-| ⚙️ **Serviciu 4** | In sviluppo | 🚧 Prossimamente |
+Sistema web completo per la gestione automatizzata di certificati HR e richieste di assenza, progettato per ambienti kiosk aziendali.
 
 ---
 
-## 🚀 DEPLOYMENT RAPIDO
+## 📋 Caratteristiche Principali
 
-### **📦 PREREQUISITI**
+### 🎫 Generazione Certificati
+- ✅ Generazione automatica certificati/adeverințe
+- 📄 PDF professionale con firma digitale
+- 🖨️ Stampa automatica su stampante configurata
+- 📧 Invio email automatico HR
+- 🏷️ Numerazione progressiva automatica
 
+### 📅 Gestione Richieste Assenza
+- ✅ Creazione richieste ferie/permessi
+- 📊 Calcolo automatico giorni lavorativi
+- 🔍 Verifica disponibilità ferie
+- 📧 Notifiche automatiche ai manager
+- ⏰ **Rilevamento richieste scadute** (v2.1.0)
+- 🔄 **Reinvio notifiche** (v2.1.0)
+
+### 📊 Report Storico Assenze
+- 📈 Report dettagliato ferie/malattie/permessi
+- 📅 Calcolo automatico con bonus anzianità
+- 📄 PDF professionale con grafici
+- 🖨️ Stampa automatica
+
+### 🔐 Sicurezza
+- 🎫 Autenticazione tramite badge RFID
+- 🔒 Credenziali database crittografate
+- 🔑 Gestione sicura chiavi di cifratura
+- 📝 Logging completo operazioni
+
+---
+
+## 🚀 Novità Versione 2.1.0
+
+### Gestione Intelligente Richieste Assenza
+
+#### 🎯 Stati Richiesta
+Il sistema ora distingue automaticamente:
+- ✅ **Approvate** - Autorizzate dal manager
+- ❌ **Respinte** - Rifiutate esplicitamente
+- ⏰ **Scadute** - Non autorizzate in tempo
+- ⏳ **In Attesa** - Ancora valide per approvazione
+
+#### 📧 Reinvio Notifiche
+- Pulsante "Retrimite Notificare" per richieste pending
+- Anti-spam con disabilitazione temporanea (10s)
+- Email fallback automatica se manager non trovati
+
+#### 🎨 UI Migliorata
+- Colori distintivi per ogni stato
+- Icone intuitive (✅/❌/⏰/⏳)
+- Feedback visivo immediato
+- Header compatto ottimizzato
+
+---
+
+## 🛠️ Tecnologie Utilizzate
+
+### Backend
+- **Python 3.11** - Linguaggio principale
+- **Flask 3.0** - Web framework
+- **pyodbc** - Connessione SQL Server
+- **ReportLab** - Generazione PDF
+- **cryptography** - Cifratura credenziali
+
+### Frontend
+- **HTML5** - Struttura
+- **CSS3** - Styling moderno
+- **JavaScript ES6** - Logica client-side
+- **Fetch API** - Comunicazione asincrona
+
+### Database
+- **SQL Server** - Database aziendale
+- **Stored Procedures** - Logica business
+- **Views** - Aggregazione dati
+
+---
+
+## 📦 Installazione
+
+### Prerequisiti
 - Windows 10/11
-- Python 3.11 o 3.14
-- SQL Server (connessione database)
-- Stampante configurata
+- Python 3.11
+- SQL Server (accesso al database aziendale)
+- Stampante configurata (opzionale)
+- Lettore RFID (opzionale)
 
-### **⚡ INSTALLAZIONE IN 3 PASSI**
-
-#### **1. Crea Pacchetto (PC Sviluppo)**
-
-```batch
-CREA_PACCHETTO_DEPLOY.bat
-```
-
-#### **2. Installa (PC Kiosk)**
-
-Estrai ZIP in `C:\Kiosk\Adeverente\` ed esegui:
+### Setup Rapido
 
 ```batch
-INSTALLA_KIOSK.bat
-```
+# 1. Clona repository
+git clone https://github.com/glctesta/kiosk-hr-adeverente.git
+cd kiosk-hr-adeverente
 
-#### **3. Avvia Applicazione**
+# 2. Crea ambiente virtuale
+python -m venv venv
+venv\Scripts\activate
 
-```batch
+# 3. Installa dipendenze
+pip install -r requirements.txt
+
+# 4. Configura database
+python setup.py
+
+# 5. Avvia applicazione
 START_APP.bat
 ```
 
-**Accesso**: http://localhost:5000
-
----
-
-## 🌐 ACCESSO DALLA RETE AZIENDALE
-
-### **CONFIGURAZIONE FIREWALL**
-
-**PowerShell (Amministratore):**
-
-```powershell
-New-NetFirewallRule -DisplayName "Kiosk HR" -Direction Inbound -LocalPort 5000 -Protocol TCP -Action Allow
-```
-
-### **ACCESSO DA ALTRI PC**
-
-1. Trova IP PC Kiosk: `ipconfig`
-2. Da altro PC: `http://[IP-KIOSK]:5000`
-
-**Esempio**: `http://192.168.10.50:5000`
-
----
-
-## 📚 DOCUMENTAZIONE COMPLETA
-
-| Documento | Descrizione |
-|-----------|-------------|
-| **DEPLOYMENT_RAPIDO.md** | Guida deployment completa |
-| **CONFIGURAZIONE_RETE.md** | Configurazione accesso rete aziendale |
-| **GUIDA_RAPIDA.md** | Guida utente finale |
-| **INSTALLAZIONE_MANUALE.md** | Installazione manuale dipendenze |
-
----
-
-## 🔧 TECNOLOGIE
-
-### **Backend**
-- Python 3.11/3.14
-- Flask 3.0.0
-- pyodbc (SQL Server)
-- reportlab (PDF generation)
-- cryptography (sicurezza)
-
-### **Frontend**
-- HTML5 / CSS3
-- JavaScript (Vanilla)
-- Design responsive
-
-### **Database**
-- SQL Server
-- Database: Employee, Timeclocking
-
----
-
-## 📊 FUNZIONALITÀ PRINCIPALI
-
-### **🎫 Autenticazione Badge RFID**
-- Lettura automatica badge
-- Validazione dipendente
-- Normalizzazione numero badge (10 cifre)
-
-### **📄 Generazione Certificati**
-- Certificati medici (Adeverința 7)
-- Certificati di lavoro
-- Firma digitale amministratore
-- Logo aziendale
-- Supporto caratteri rumeni (ă, â, î, ș, ț)
-
-### **📊 Report Absențe**
-- Situazione ferie dettagliata
-- Bonus anzianità automatico
-- Malattie e permessi
-- Calcolo solo giorni lavorativi
-- Esclusione weekend e festività
-
-### **🖨️ Stampa Automatica**
-- Stampa silenziosa
-- Stampante predefinita
-- Configurazione personalizzabile
-
-### **🔒 Sicurezza**
-- Credenziali database criptate
-- Chiave crittografia separata
-- Privacy badge (mascheramento)
-
-### **🏠 Kiosk Mode**
-- Auto-redirect dopo inattività
-- Bottone "Torna Indietro"
-- Reset automatico form
-- Interfaccia touch-friendly
-
----
-
-## 🗂️ STRUTTURA PROGETTO
-
-```
-Adeverente/
-├── app.py                      # Applicazione Flask principale
-├── absence_report.py           # Generatore report absențe
-├── certificate_generator.py   # Generatore certificati
-├── badge_reader.py             # Lettore badge RFID
-├── db_connection.py            # Connessione database
-├── config_manager.py           # Gestione configurazione
-├── pdf_printer.py              # Stampa PDF
-├── utils.py                    # Utility varie
-│
-├── templates/                  # Template HTML
-│   ├── launcher.html           # Pagina principale
-│   ├── index.html              # Certificati
-│   └── absence.html            # Report absențe
-│
-├── static/                     # Risorse statiche
-│   ├── css/
-│   │   ├── launcher.css        # Stili launcher
-│   │   └── styles.css          # Stili globali
-│   ├── js/
-│   │   ├── app.js              # JavaScript certificati
-│   │   └── absence.js          # JavaScript absențe
-│   └── logo.png                # Logo aziendale
-│
-├── DejaVuSans.ttf              # Font caratteri rumeni
-├── DejaVuSans-Bold.ttf         # Font bold
-├── logo.png                    # Logo aziendale
-│
-├── db_config.enc               # Config database (criptato)
-├── encryption_key.key          # Chiave crittografia
-├── print_config.json           # Config stampante
-│
-├── START_APP.bat               # Avvio applicazione
-├── INSTALLA_KIOSK.bat          # Installazione
-├── CREA_PACCHETTO_DEPLOY.bat   # Creazione pacchetto
-│
-└── temp/                       # PDF generati (temporanei)
-```
-
----
-
-## ⚙️ CONFIGURAZIONE
-
-### **Database**
-
-```python
-# Esegui setup
-python setup.py
-```
-
-Inserisci:
-- Server: `SQLSERVER01`
-- Database: `Employee`
-- Username: `kiosk_user`
-- Password: `********`
-
-### **Stampante**
-
-Modifica `print_config.json`:
-
-```json
-{
-    "default_printer": "HP LaserJet",
-    "auto_print": true,
-    "silent_print": true
-}
-```
-
-### **Rete**
-
-Modifica `app.py` (ultima riga):
-
-```python
-# Accesso solo locale
-app.run(host='127.0.0.1', port=5000)
-
-# Accesso da rete
-app.run(host='0.0.0.0', port=5000)
-```
-
----
-
-## 🧪 TEST
-
-### **Test Locale**
-
-```
-http://localhost:5000
-```
-
-### **Test Rete**
-
-```
-http://[IP-PC-KIOSK]:5000
-```
-
-### **Test Servizi**
-
-1. **Launcher**: Verifica 4 bottoni visibili
-2. **Certificati**: Scansiona badge → Genera certificato
-3. **Absențe**: Scansiona badge → Genera report
-4. **Stampa**: Verifica PDF stampato
-
----
-
-## 📝 LOG
-
-### **Visualizza Log**
+### Configurazione Kiosk Fullscreen
 
 ```batch
+# Avvia in modalità kiosk fullscreen
+START_KIOSK_FULLSCREEN.bat
+```
+
+---
+
+## 📖 Documentazione
+
+### Guide Disponibili
+- 📘 [**GUIDA_RAPIDA.md**](GUIDA_RAPIDA.md) - Guida utente completa
+- 🚀 [**DEPLOYMENT_v2.1.0.md**](DEPLOYMENT_v2.1.0.md) - Istruzioni deployment
+- 📋 [**RELEASE_NOTES_v2.1.0.md**](RELEASE_NOTES_v2.1.0.md) - Note di rilascio
+- 🔧 [**GUIDA_DEPLOYMENT.md**](GUIDA_DEPLOYMENT.md) - Deployment avanzato
+- 🖨️ [**STAMPA_AUTOMATICA.md**](STAMPA_AUTOMATICA.md) - Configurazione stampa
+- 🎫 [**GUIDA_RFID.md**](GUIDA_RFID.md) - Setup lettore RFID
+- 🌐 [**CONFIGURAZIONE_RETE.md**](CONFIGURAZIONE_RETE.md) - Accesso da rete
+
+---
+
+## 🎯 Utilizzo
+
+### 1. Generazione Certificato
+```
+1. Avvicinare badge RFID al lettore
+2. Selezionare motivo certificato
+3. Confermare generazione
+4. PDF generato e stampato automaticamente
+```
+
+### 2. Richiesta Assenza
+```
+1. Avvicinare badge RFID
+2. Selezionare tipo assenza (ferie/permesso)
+3. Scegliere periodo
+4. Confermare richiesta
+5. Email inviata ai manager automaticamente
+```
+
+### 3. Verifica Stato Richiesta
+```
+1. Inserire numero richiesta (es: 2ARQ-2025)
+2. Visualizzare stato corrente
+3. Se pending: reinviare notifica ai manager
+```
+
+### 4. Report Storico
+```
+1. Avvicinare badge RFID
+2. Selezionare anno
+3. Generare report
+4. PDF con dettaglio ferie/malattie/permessi
+```
+
+---
+
+## 🔧 Configurazione
+
+### Database
+Credenziali crittografate in:
+- `db_config.enc` - Configurazione database
+- `encryption_key.key` - Chiave cifratura
+
+### Email
+Configurazione SMTP in:
+- `email_credentials.enc` - Credenziali email
+- `email_key.key` - Chiave cifratura email
+
+### Stampa
+Configurazione stampante in:
+- `print_config.json` - Impostazioni stampa
+
+---
+
+## 📊 Architettura
+
+```
+┌─────────────────────────────────────────┐
+│         Frontend (Browser)              │
+│  HTML5 + CSS3 + JavaScript ES6          │
+└──────────────┬──────────────────────────┘
+               │ HTTP/JSON
+┌──────────────▼──────────────────────────┐
+│         Backend (Flask)                 │
+│  - app.py (Routes)                      │
+│  - certificate_generator.py             │
+│  - absence_request.py                   │
+│  - absence_report.py                    │
+└──────────────┬──────────────────────────┘
+               │ pyodbc
+┌──────────────▼──────────────────────────┐
+│      SQL Server Database                │
+│  - Employee.dbo.*                       │
+│  - Timeclocking.dbo.*                   │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Problema: Servizio non si avvia
+```batch
+# Verifica log
 type app_debug.log
+
+# Verifica dipendenze
+pip list
 ```
 
-### **Log in Tempo Reale**
-
-```powershell
-Get-Content app_debug.log -Wait -Tail 50
+### Problema: Errore database
+```batch
+# Verifica connessione
+python -c "from db_connection import DatabaseConnection; print(DatabaseConnection().connect())"
 ```
 
-### **Livelli Log**
-
-- **INFO**: Operazioni normali
-- **WARNING**: Avvisi
-- **ERROR**: Errori
-
----
-
-## 🔍 TROUBLESHOOTING
-
-### **Problema: Applicazione non si avvia**
-
-**Soluzione:**
-1. Verifica Python installato: `python --version`
-2. Verifica dipendenze: `pip list`
-3. Controlla log: `app_debug.log`
-
-### **Problema: Errore connessione database**
-
-**Soluzione:**
-1. Verifica `db_config.enc` presente
-2. Riesegui: `python setup.py`
-3. Test connessione SQL Server
-
-### **Problema: Caratteri rumeni non visualizzati**
-
-**Soluzione:**
-1. Verifica font: `DejaVuSans.ttf`, `DejaVuSans-Bold.ttf`
-2. Copia font dalla cartella sviluppo
-
-### **Problema: Stampa non funziona**
-
-**Soluzione:**
-1. Verifica stampante predefinita: `wmic printer get name,default`
-2. Controlla `print_config.json`
-3. Test stampa manuale
-
-### **Problema: Non accessibile da rete**
-
-**Soluzione:**
-1. Verifica firewall: porta 5000 aperta
-2. Verifica IP: `ipconfig`
-3. Test ping da altro PC
-4. Verifica `app.py`: `host='0.0.0.0'`
+### Problema: Stampa non funziona
+```batch
+# Verifica stampante
+python pdf_printer.py
+```
 
 ---
 
-## 🔐 SICUREZZA
+## 📞 Supporto
 
-### **Best Practices**
+**Contatto:** gianluca.testa@vandewiele.com
 
-✅ **FARE:**
-- Usare credenziali database criptate
-- Limitare accesso a rete interna
-- Monitorare log regolarmente
-- Backup configurazione
-
-❌ **NON FARE:**
-- Esporre su Internet pubblico
-- Condividere `encryption_key.key`
-- Usare su reti non sicure
-- Disabilitare firewall
+**Informazioni da fornire:**
+- Versione sistema (vedi `app.py`)
+- Log applicazione (`app_debug.log`)
+- Screenshot errore
+- Passi per riprodurre
 
 ---
 
-## 📞 SUPPORTO
+## 📅 Roadmap
 
-### **Problemi Comuni**
+### v2.2.0 (Q1 2026)
+- [ ] Dashboard manager per approvazioni
+- [ ] Notifiche push browser
+- [ ] API REST documentata
+- [ ] Autenticazione multi-fattore
 
-| Problema | Soluzione |
-|----------|-----------|
-| Python non trovato | Installa Python 3.11/3.14 |
-| Dipendenze mancanti | Esegui `INSTALLA_KIOSK.bat` |
-| Database non raggiungibile | Verifica connessione SQL Server |
-| Firewall blocca | Configura porta 5000 |
-
-### **Contatti**
-
-- **Log**: `app_debug.log`
-- **Documentazione**: `*.md`
-- **Configurazione**: `setup.py`
+### v2.3.0 (Q2 2026)
+- [ ] App mobile companion
+- [ ] Integrazione calendario Outlook
+- [ ] Report analytics avanzati
+- [ ] Supporto multi-lingua
 
 ---
 
-## 📈 ROADMAP
+## 📄 Licenza
 
-### **Versione Corrente: 2.0**
-
-- ✅ Launcher multi-servizio
-- ✅ Certificati medici
-- ✅ Report absențe
-- ✅ Supporto rete aziendale
-- ✅ Font rumeni
-
-### **Prossime Funzionalità**
-
-- 🚧 Serviciu 3 (TBD)
-- 🚧 Serviciu 4 (TBD)
-- 🚧 Dashboard amministratore
-- 🚧 Statistiche utilizzo
+Proprietario - Vandewiele Romania  
+© 2025 Tutti i diritti riservati
 
 ---
 
-## 📄 LICENZA
+## 👥 Autori
 
-Uso interno aziendale.
-
----
-
-## 🎉 CREDITS
-
-**Sviluppato da**: Gianluca Testa  
-**Data**: Dicembre 2025  
-**Versione**: 2.0  
+**Gianluca Testa**  
+IT Manager - Vandewiele Romania  
+📧 gianluca.testa@vandewiele.com
 
 ---
 
-*Per informazioni dettagliate, consulta la documentazione completa nella cartella del progetto.*
+## 🙏 Ringraziamenti
+
+- Team HR Vandewiele Romania
+- Utenti beta tester
+- Comunità Flask e Python
+
+---
+
+**Versione:** 2.1.0  
+**Ultimo Aggiornamento:** 30 Dicembre 2025
