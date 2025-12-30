@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerere Absență - Sistem HR</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="/static/logo.png" alt="Logo Companie" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1 class="title">Cerere Absență</h1>
+            <p class="subtitle">Solicitare concediu, permis sau altă absență</p>
+
+            <!-- Bottone Torna Indietro -->
+            <a href="/" class="back-button" title="Torna alla pagina principale">
+                <span class="back-icon">🏠</span>
+                <span class="back-text">Pagina Principală</span>
+            </a>
+        </header>
+
+        <!-- Main Form -->
+        <main class="main-content">
+            <form id="requestForm" class="certificate-form">
+                <!-- Badge RFID Input -->
+                <div class="form-group">
+                    <label for="badgeInput" class="form-label">
+                        <span class="label-text">Badge RFID *</span>
+                        <span class="label-helper">Apropiați badge-ul de cititorul RFID</span>
+                    </label>
+                    <div class="badge-input-container">
+                        <input type="password" id="badgeInput" name="badge" class="form-input badge-input"
+                            placeholder="Așteptare citire badge..." autocomplete="off" autofocus required>
+                        <span class="badge-status" id="badgeStatus">
+                            <span class="status-icon">📱</span>
+                            <span class="status-text">În așteptare...</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Employee Info (Hidden until badge is read) -->
+                <div id="employeeInfo" class="employee-info" style="display: none;">
+                    <div class="info-card">
+                        <div class="info-icon">👤</div>
+                        <div class="info-content">
+                            <div class="info-label">Angajat selectat</div>
+                            <div class="info-value" id="employeeName"></div>
+                        </div>
+                    </div>
+
+                    <!-- Giorni disponibili (solo per ferie) -->
+                    <div id="availableDaysInfo" class="info-card" style="display: none;">
+                        <div class="info-icon">📅</div>
+                        <div class="info-content">
+                            <div class="info-label">Zile concediu disponibile</div>
+                            <div class="info-value" id="availableDays">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tipo Assenza -->
+                <div class="form-group">
+                    <label for="requestType" class="form-label">
+                        <span class="label-text">Tip absență *</span>
+                        <span class="label-helper">Selectați tipul de absență solicitată</span>
+                    </label>
+                    <select id="requestType" name="requestType" class="form-select" required disabled>
+                        <option value="">Selectați...</option>
+                        <!-- Populated by JavaScript -->
+                    </select>
+                </div>
+
+                <!-- Data Inizio -->
+                <div class="form-group">
+                    <label for="dateStart" class="form-label">
+                        <span class="label-text">Data început *</span>
+                        <span class="label-helper">Prima zi de absență</span>
+                    </label>
+                    <input type="date" id="dateStart" name="dateStart" class="form-input" required disabled>
+                </div>
+
+                <!-- Data Fine -->
+                <div class="form-group">
+                    <label for="dateEnd" class="form-label">
+                        <span class="label-text">Data sfârșit *</span>
+                        <span class="label-helper">Ultima zi de absență</span>
+                    </label>
+                    <input type="date" id="dateEnd" name="dateEnd" class="form-input" required disabled>
+                </div>
+
+                <!-- Working Days Info -->
+                <div id="workingDaysInfo" class="info-card" style="display: none;">
+                    <div class="info-icon">📊</div>
+                    <div class="info-content">
+                        <div class="info-label">Zile lucrătoare solicitate</div>
+                        <div class="info-value" id="workingDays">0</div>
+                        <div class="info-helper" id="workingDaysHelper"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="form-actions">
+                    <button type="submit" id="submitBtn" class="btn-primary" disabled>
+                        <span class="btn-icon">📝</span>
+                        Trimite Cererea
+                    </button>
+                    <button type="button" id="resetBtn" class="btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Resetează
+                    </button>
+                </div>
+            </form>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="result-section" style="display: none;">
+                <div class="result-card">
+                    <div class="result-icon">✅</div>
+                    <h2 class="result-title">Cerere înregistrată cu succes!</h2>
+                    <div class="result-details">
+                        <p><strong>Număr cerere:</strong> <span id="resultRequestNumber"></span></p>
+                        <p><strong>Angajat:</strong> <span id="resultEmployee"></span></p>
+                        <p><strong>Tip absență:</strong> <span id="resultType"></span></p>
+                        <p><strong>Perioada:</strong> <span id="resultPeriod"></span></p>
+                        <p><strong>Zile lucrătoare:</strong> <span id="resultDays"></span></p>
+                    </div>
+                    <div class="result-warning">
+                        <p><strong>⚠️ IMPORTANT:</strong></p>
+                        <p>Cererea este ÎN AȘTEPTARE de aprobare.</p>
+                        <p>Veți primi confirmarea scrisă din partea superiorului direct sau a departamentului HR.</p>
+                    </div>
+                    <div class="result-actions">
+                        <button id="printBtn" class="btn-primary">
+                            <span class="btn-icon">🖨️</span>
+                            Printează Confirmare
+                        </button>
+                        <button id="newRequestBtn" class="btn-secondary">
+                            Cerere Nouă
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Se procesează cererea...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <script src="/static/js/request.js"></script>
+</body>
+
+</html>

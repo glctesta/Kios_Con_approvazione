@@ -1,0 +1,265 @@
+/* ========================================
+   COMPACT MODE - Riduce spacing per evitare scroll
+   Aggiungi questo DOPO styles.css
+   ======================================== */
+
+/* Riduce padding generale */
+body {
+    padding: 1rem 0.75rem !important;
+    min-height: 100vh !important;
+    overflow: hidden !important;
+}
+
+.container {
+    padding: 1.5rem !important;
+    max-height: 100vh !important;
+    overflow-y: auto !important;
+}
+
+/* Header più compatto */
+.header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+.title {
+    font-size: 1.75rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.subtitle {
+    font-size: 0.95rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.logo {
+    max-height: 50px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Form più compatto */
+.certificate-form {
+    gap: 0.75rem !important;
+}
+
+.form-group {
+    margin-bottom: 0.75rem !important;
+}
+
+.form-label {
+    margin-bottom: 0.35rem !important;
+    font-size: 0.9rem !important;
+}
+
+.label-text {
+    font-size: 0.9rem !important;
+}
+
+.label-helper {
+    font-size: 0.75rem !important;
+}
+
+.form-input,
+.form-select {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+}
+
+/* Badge input più compatto */
+.badge-input-wrapper {
+    padding: 0.75rem !important;
+}
+
+.badge-icon {
+    font-size: 1.75rem !important;
+}
+
+.badge-input {
+    font-size: 1.1rem !important;
+    padding: 0.5rem !important;
+}
+
+/* Employee info più compatta */
+.employee-info {
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+}
+
+.info-item {
+    padding: 0.5rem !important;
+}
+
+.info-label {
+    font-size: 0.75rem !important;
+}
+
+.info-value {
+    font-size: 0.9rem !important;
+}
+
+/* Bottoni più compatti */
+.form-actions {
+    gap: 0.5rem !important;
+    margin-top: 0.75rem !important;
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 0.6rem 1.25rem !important;
+    font-size: 0.9rem !important;
+}
+
+.btn-icon {
+    font-size: 1rem !important;
+}
+
+/* Back button più piccolo */
+.back-button {
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    top: 0.75rem !important;
+    right: 0.75rem !important;
+}
+
+.back-icon {
+    font-size: 1rem !important;
+}
+
+.back-text {
+    font-size: 0.85rem !important;
+}
+
+/* Success message più compatto */
+.success-message {
+    padding: 1rem !important;
+    gap: 0.75rem !important;
+}
+
+.success-icon {
+    font-size: 2.5rem !important;
+}
+
+.success-title {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.35rem !important;
+}
+
+.success-subtitle {
+    font-size: 0.9rem !important;
+}
+
+.success-details {
+    padding: 0.75rem !important;
+    gap: 0.35rem !important;
+}
+
+.detail-item {
+    font-size: 0.85rem !important;
+}
+
+/* Toast più piccoli */
+.toast {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.85rem !important;
+}
+
+.toast-icon {
+    font-size: 1.1rem !important;
+}
+
+/* Loading overlay */
+.loading-spinner {
+    width: 40px !important;
+    height: 40px !important;
+}
+
+.loading-text {
+    font-size: 0.9rem !important;
+    margin-top: 0.75rem !important;
+}
+
+/* Tabelle più compatte */
+table {
+    font-size: 0.85rem !important;
+}
+
+th,
+td {
+    padding: 0.5rem !important;
+}
+
+/* Result section più compatta */
+.result-section {
+    padding: 0.75rem !important;
+}
+
+.result-card {
+    padding: 1rem !important;
+}
+
+.result-icon {
+    font-size: 2.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.result-title {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.result-details p {
+    margin-bottom: 0.35rem !important;
+    font-size: 0.9rem !important;
+}
+
+/* Riduci gap tra sezioni */
+.main-content>*+* {
+    margin-top: 0.75rem !important;
+}
+
+/* Ottimizza per schermi piccoli */
+@media (max-height: 900px) {
+    body {
+        padding: 0.5rem !important;
+    }
+
+    .container {
+        padding: 1rem !important;
+    }
+
+    .title {
+        font-size: 1.5rem !important;
+    }
+
+    .form-group {
+        margin-bottom: 0.5rem !important;
+    }
+}
+
+@media (max-height: 768px) {
+    .header {
+        margin-bottom: 0.5rem !important;
+    }
+
+    .title {
+        font-size: 1.35rem !important;
+    }
+
+    .subtitle {
+        font-size: 0.85rem !important;
+    }
+
+    .logo {
+        max-height: 40px !important;
+    }
+
+    .form-group {
+        margin-bottom: 0.4rem !important;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem !important;
+    }
+}

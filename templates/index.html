@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generare Adeverințe - Sistem HR</title>
+    <meta name="description" content="Aplicație web pentru generarea certificatelor și adeverințelor pentru angajați">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="/static/logo.png" alt="Logo Companie" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1 class="title">Generare Adeverințe</h1>
+            <p class="subtitle">Sistem de generare certificate pentru angajați</p>
+
+            <!-- Bottone Torna Indietro -->
+            <a href="/" class="back-button" title="Torna alla pagina principale">
+                <span class="back-icon">🏠</span>
+                <span class="back-text">Pagina Principală</span>
+            </a>
+        </header>
+
+        <!-- Main Form -->
+        <main class="main-content main-content-split">
+            <form id="certificateForm" class="certificate-form">
+                <!-- Badge RFID Input -->
+                <div class="form-group">
+                    <label for="badgeInput" class="form-label">
+                        <span class="label-text">Badge RFID *</span>
+                        <span class="label-helper">Apropiați badge-ul de cititorul RFID</span>
+                    </label>
+                    <div class="badge-input-container">
+                        <input type="password" id="badgeInput" name="badge" class="form-input badge-input"
+                            placeholder="Așteptare citire badge..." autocomplete="off" autofocus required>
+                        <span class="badge-status" id="badgeStatus">
+                            <span class="status-icon">📱</span>
+                            <span class="status-text">În așteptare...</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Employee Info (Hidden until badge is read) -->
+                <div id="employeeInfo" class="employee-info" style="display: none;">
+                    <div class="info-card">
+                        <div class="info-icon">👤</div>
+                        <div class="info-content">
+                            <div class="info-label">Angajat selectat</div>
+                            <div class="info-value" id="employeeName"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificate Reason -->
+                <div class="form-group">
+                    <label for="reasonSelect" class="form-label">
+                        <span class="label-text">Motiv adeverință *</span>
+                        <span class="label-helper">Selectați motivul pentru care se solicită adeverința</span>
+                    </label>
+                    <select id="reasonSelect" name="reason" class="form-select" required>
+                        <option value="">Încărcare motive...</option>
+                    </select>
+                    <button type="button" id="addReasonBtn" class="btn-secondary btn-small">
+                        + Adaugă motiv nou
+                    </button>
+                </div>
+
+                <!-- Custom Reason (Hidden by default) -->
+                <div id="customReasonGroup" class="form-group" style="display: none;">
+                    <label for="customReason" class="form-label">
+                        <span class="label-text">Detalii suplimentare *</span>
+                        <span class="label-helper">Completați cu informații suplimentare despre motiv</span>
+                    </label>
+                    <textarea id="customReason" name="customReason" class="form-textarea" rows="4"
+                        placeholder="Introduceți detaliile motivului..."></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="form-actions">
+                    <button type="submit" id="generateBtn" class="btn-primary" disabled>
+                        <span class="btn-icon">📄</span>
+                        Generează Adeverință
+                    </button>
+                    <button type="button" id="resetBtn" class="btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Resetează
+                    </button>
+                </div>
+            </form>
+
+            <!-- Info Panel -->
+            <aside class="info-panel">
+                <div class="info-panel-header">
+                    <h2 class="info-panel-title">📋 Instrucțiuni de utilizare</h2>
+                </div>
+
+                <div class="info-panel-content">
+                    <ol class="instructions-list">
+                        <li>
+                            <span class="instruction-number">1</span>
+                            <span class="instruction-text">Selectați serviciul dorit</span>
+                        </li>
+                        <li class="instruction-with-image">
+                            <div class="instruction-main">
+                                <span class="instruction-number">2</span>
+                                <span class="instruction-text">Apropiați badge-ul de cititorul RFID</span>
+                            </div>
+                            <div class="rfid-image-inline">
+                                <img src="/static/generated-image.png" alt="Locația cititorului RFID"
+                                    class="rfid-image-small">
+                            </div>
+                        </li>
+                        <li>
+                            <span class="instruction-number">3</span>
+                            <span class="instruction-text">Când sistemul vă va identifica, selectați opțiunile
+                                dorite</span>
+                        </li>
+                        <li>
+                            <span class="instruction-number">4</span>
+                            <span class="instruction-text">Așteptați documentul sau un mesaj pe ecran</span>
+                        </li>
+                    </ol>
+
+                    <div class="info-note">
+                        <div class="note-icon">ℹ️</div>
+                        <p class="note-text">Cererile vor fi transmise direct responsabililor dumneavoastră.</p>
+                    </div>
+
+
+                </div>
+            </aside>
+        </main>
+        <div id="resultSection" class="result-section" style="display: none;">
+            <div class="result-card">
+                <div class="result-icon">✅</div>
+                <h2 class="result-title">Adeverință generată cu succes!</h2>
+                <div class="result-details">
+                    <p><strong>Număr document:</strong> <span id="docNumber"></span></p>
+                    <p><strong>Data:</strong> <span id="docDate"></span></p>
+                </div>
+                <div class="result-actions">
+                    <button id="printBtn" class="btn-primary">
+                        <span class="btn-icon">🖨️</span>
+                        Printează
+                    </button>
+                    <button id="newCertBtn" class="btn-secondary">
+                        Generează altă adeverință
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Se generează adeverința...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <!-- Add Reason Modal -->
+    <div id="addReasonModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Adaugă motiv nou</h2>
+                <button class="modal-close" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newReasonText" class="form-label">
+                        <span class="label-text">Descriere motiv *</span>
+                    </label>
+                    <input type="text" id="newReasonText" class="form-input" placeholder="Ex: Pentru obținere viză"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="requiresDetails" class="form-checkbox">
+                        <span>Necesită detalii suplimentare la generare</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveReasonBtn" class="btn-primary">Salvează</button>
+                <button id="cancelReasonBtn" class="btn-secondary">Anulează</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>

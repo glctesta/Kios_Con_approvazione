@@ -1,0 +1,579 @@
+/**
+ * CERTIFICATE GENERATOR - FRONTEND APPLICATION
+ * Modern JavaScript with async/await and ES6+ features
+ */
+
+// ========================================
+// STATE MANAGEMENT
+// ========================================
+const state = {
+    employees: [],
+    reasons: [],
+    selectedEmployee: null,
+    selectedReason: null,
+    currentPdfPath: null,
+    badgeReadTimeout: null,
+    autoResetTimeout: null,
+    isProcessing: false
+};
+
+// ========================================
+// CONFIGURATION
+// ========================================
+const config = {
+    badgeReadDelay: 500,        // ms dopo input badge prima di validare
+    autoResetDelay: 30000,      // ms prima di auto-reset dopo stampa (30 secondi)
+    showResultDuration: 10000   // ms per mostrare risultato prima di tornare a badge
+};
+
+// ========================================
+// DOM ELEMENTS
+// ========================================
+const elements = {
+    badgeInput: document.getElementById('badgeInput'),
+    badgeStatus: document.getElementById('badgeStatus'),
+    employeeInfo: document.getElementById('employeeInfo'),
+    employeeName: document.getElementById('employeeName'),
+    reasonSelect: document.getElementById('reasonSelect'),
+    customReasonGroup: document.getElementById('customReasonGroup'),
+    customReason: document.getElementById('customReason'),
+    generateBtn: document.getElementById('generateBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    certificateForm: document.getElementById('certificateForm'),
+    resultSection: document.getElementById('resultSection'),
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    addReasonBtn: document.getElementById('addReasonBtn'),
+    addReasonModal: document.getElementById('addReasonModal'),
+    closeModalBtn: document.getElementById('closeModalBtn'),
+    saveReasonBtn: document.getElementById('saveReasonBtn'),
+    cancelReasonBtn: document.getElementById('cancelReasonBtn'),
+    newReasonText: document.getElementById('newReasonText'),
+    requiresDetails: document.getElementById('requiresDetails'),
+    printBtn: document.getElementById('printBtn'),
+    newCertBtn: document.getElementById('newCertBtn'),
+    docNumber: document.getElementById('docNumber'),
+    docDate: document.getElementById('docDate'),
+    toastContainer: document.getElementById('toastContainer')
+};
+
+// ========================================
+// INITIALIZATION
+// ========================================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Certificate Generator - KIOSK MODE initialized');
+
+    // Carica solo i motivi (non più i dipendenti)
+    await loadReasons();
+
+    // Setup event listeners
+    setupEventListeners();
+
+    // Focus automatico su badge input
+    focusBadgeInput();
+
+    // Mostra messaggio benvenuto
+    showToast('Sistem gata - Apropiați badge-ul RFID', 'success');
+
+    // Attiva auto-scroll per le istruzioni se necessario
+    initializeInstructionsAutoScroll();
+});
+
+// ========================================
+// BADGE MANAGEMENT
+// ========================================
+function focusBadgeInput() {
+    elements.badgeInput.focus();
+    elements.badgeInput.select();
+}
+
+async function handleBadgeInput(e) {
+    const badgeNumber = e.target.value.trim();
+
+    // Clear previous timeout
+    if (state.badgeReadTimeout) {
+        clearTimeout(state.badgeReadTimeout);
+    }
+
+    // Se il campo è vuoto, reset status
+    if (!badgeNumber) {
+        updateBadgeStatus('waiting');
+        return;
+    }
+
+    // Mostra status "lettura in corso"
+    updateBadgeStatus('reading');
+
+    // Debounce: attendi che l'utente finisca di digitare/lettore finisca
+    state.badgeReadTimeout = setTimeout(async () => {
+        await validateBadge(badgeNumber);
+    }, config.badgeReadDelay);
+}
+
+async function validateBadge(badgeNumber) {
+    if (state.isProcessing) return;
+
+    try {
+        state.isProcessing = true;
+
+        const response = await fetch('/api/validate-badge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ badgeNumber })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            state.selectedEmployee = data.employee;
+            showEmployeeInfo(data.employee);
+            updateBadgeStatus('success');
+            showToast(`Bun venit ${data.employee.name}!`, 'success');
+
+            // Disabilita input badge
+            elements.badgeInput.disabled = true;
+        } else {
+            updateBadgeStatus('error');
+            showToast(data.error || 'Badge nerecunoscut', 'error');
+
+            // Reset dopo 2 secondi
+            setTimeout(() => {
+                resetBadgeInput();
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Error validating badge:', error);
+        updateBadgeStatus('error');
+        showToast('Eroare de conexiune', 'error');
+
+        setTimeout(() => {
+            resetBadgeInput();
+        }, 2000);
+    } finally {
+        state.isProcessing = false;
+    }
+}
+
+function updateBadgeStatus(status) {
+    const statusIcon = elements.badgeStatus.querySelector('.status-icon');
+    const statusText = elements.badgeStatus.querySelector('.status-text');
+
+    // Remove all status classes
+    elements.badgeStatus.classList.remove('reading', 'success', 'error');
+
+    switch (status) {
+        case 'waiting':
+            statusIcon.textContent = '📱';
+            statusText.textContent = 'În așteptare...';
+            break;
+        case 'reading':
+            elements.badgeStatus.classList.add('reading');
+            statusIcon.textContent = '🔄';
+            statusText.textContent = 'Citire...';
+            break;
+        case 'success':
+            elements.badgeStatus.classList.add('success');
+            statusIcon.textContent = '✅';
+            statusText.textContent = 'Recunoscut';
+            break;
+        case 'error':
+            elements.badgeStatus.classList.add('error');
+            statusIcon.textContent = '❌';
+            statusText.textContent = 'Eroare';
+            break;
+    }
+}
+
+function showEmployeeInfo(employee) {
+    elements.employeeName.textContent = employee.name;
+    elements.employeeInfo.style.display = 'block';
+    validateForm();
+}
+
+function resetBadgeInput() {
+    elements.badgeInput.value = '';
+    elements.badgeInput.disabled = false;
+    updateBadgeStatus('waiting');
+    focusBadgeInput();
+}
+
+// ========================================
+// DATA LOADING
+// ========================================
+async function loadReasons() {
+    try {
+        const response = await fetch('/api/certificate-reasons');
+        const data = await response.json();
+
+        if (data.success) {
+            state.reasons = data.reasons;
+            populateReasonSelect();
+        } else {
+            throw new Error(data.error || 'Eroare la încărcarea motivelor');
+        }
+    } catch (error) {
+        console.error('Error loading reasons:', error);
+        showToast('Eroare la încărcarea motivelor: ' + error.message, 'error');
+        elements.reasonSelect.innerHTML = '<option value="">Eroare la încărcare</option>';
+    }
+}
+
+// ========================================
+// UI POPULATION
+// ========================================
+function populateReasonSelect() {
+    elements.reasonSelect.innerHTML = '<option value="">Selectează motivul...</option>';
+
+    state.reasons.forEach(reason => {
+        const option = document.createElement('option');
+        option.value = reason.id;
+        option.textContent = reason.reason;
+        option.dataset.canTypeSpecial = reason.canTypeSpecial;
+        option.dataset.groupId = reason.groupId;
+        elements.reasonSelect.appendChild(option);
+    });
+}
+
+// ========================================
+// EVENT LISTENERS
+// ========================================
+function setupEventListeners() {
+    // Badge input
+    elements.badgeInput.addEventListener('input', handleBadgeInput);
+
+    // Reason selection
+    elements.reasonSelect.addEventListener('change', handleReasonChange);
+
+    // Form submission
+    elements.certificateForm.addEventListener('submit', handleFormSubmit);
+
+    // Reset button
+    elements.resetBtn.addEventListener('click', resetToKioskMode);
+
+    // Add reason modal
+    elements.addReasonBtn.addEventListener('click', openAddReasonModal);
+    elements.closeModalBtn.addEventListener('click', closeAddReasonModal);
+    elements.cancelReasonBtn.addEventListener('click', closeAddReasonModal);
+    elements.saveReasonBtn.addEventListener('click', saveNewReason);
+
+    // Result actions
+    elements.printBtn.addEventListener('click', printCertificate);
+    elements.newCertBtn.addEventListener('click', resetToKioskMode);
+
+    // Auto-focus badge quando perde focus
+    elements.badgeInput.addEventListener('blur', () => {
+        if (!state.selectedEmployee && !state.isProcessing) {
+            setTimeout(() => focusBadgeInput(), 100);
+        }
+    });
+}
+
+// ========================================
+// EVENT HANDLERS
+// ========================================
+function handleReasonChange(e) {
+    const selectedOption = e.target.options[e.target.selectedIndex];
+
+    if (selectedOption.value) {
+        state.selectedReason = {
+            id: selectedOption.value,
+            reason: selectedOption.textContent,
+            canTypeSpecial: selectedOption.dataset.canTypeSpecial === 'true',
+            groupId: parseInt(selectedOption.dataset.groupId)
+        };
+
+        // Show/hide custom reason field
+        if (state.selectedReason.canTypeSpecial) {
+            elements.customReasonGroup.style.display = 'flex';
+            elements.customReason.required = true;
+        } else {
+            elements.customReasonGroup.style.display = 'none';
+            elements.customReason.required = false;
+            elements.customReason.value = '';
+        }
+
+        console.log('Selected reason:', state.selectedReason);
+        validateForm();
+    } else {
+        state.selectedReason = null;
+        elements.customReasonGroup.style.display = 'none';
+        elements.customReason.required = false;
+        validateForm();
+    }
+}
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    if (!validateForm()) {
+        showToast('Completați toate câmpurile obligatorii', 'warning');
+        return;
+    }
+
+    // Check custom reason if required
+    if (state.selectedReason.canTypeSpecial && !elements.customReason.value.trim()) {
+        showToast('Completați detaliile suplimentare', 'warning');
+        elements.customReason.focus();
+        return;
+    }
+
+    // Genera direttamente senza conferma (stampa automatica)
+    await generateCertificate();
+}
+
+// ========================================
+// CERTIFICATE GENERATION
+// ========================================
+async function generateCertificate() {
+    try {
+        showLoading('Se generează adeverința...');
+
+        const payload = {
+            employeeId: state.selectedEmployee.id,
+            reason: state.selectedReason.reason,
+            typedReason: elements.customReason.value.trim(),
+            groupId: state.selectedReason.groupId
+        };
+
+        console.log('Generating certificate with payload:', payload);
+
+        const response = await fetch('/api/generate-certificate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            state.currentPdfPath = data.pdfPath;
+            showResult(data);
+            showToast('Adeverință generată cu succes!', 'success');
+        } else {
+            throw new Error(data.error || 'Eroare la generarea adeverinței');
+        }
+    } catch (error) {
+        console.error('Error generating certificate:', error);
+        showToast('Eroare: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// ========================================
+// ADD NEW REASON
+// ========================================
+function openAddReasonModal() {
+    elements.addReasonModal.style.display = 'flex';
+    elements.newReasonText.value = '';
+    elements.requiresDetails.checked = false;
+    elements.newReasonText.focus();
+}
+
+function closeAddReasonModal() {
+    elements.addReasonModal.style.display = 'none';
+}
+
+async function saveNewReason() {
+    const reasonText = elements.newReasonText.value.trim();
+
+    if (!reasonText) {
+        showToast('Introduceți descrierea motivului', 'warning');
+        elements.newReasonText.focus();
+        return;
+    }
+
+    try {
+        showLoading('Salvare motiv...');
+
+        const response = await fetch('/api/add-reason', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                reason: reasonText,
+                canTypeSpecial: elements.requiresDetails.checked
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast('Motiv adăugat cu succes!', 'success');
+            closeAddReasonModal();
+            await loadReasons();
+        } else {
+            throw new Error(data.error || 'Eroare la salvarea motivului');
+        }
+    } catch (error) {
+        console.error('Error saving reason:', error);
+        showToast('Eroare: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// ========================================
+// RESULT DISPLAY
+// ========================================
+function showResult(data) {
+    elements.docNumber.textContent = data.documentNumber;
+    elements.docDate.textContent = data.documentDate;
+
+    // Mostra stato stampa se disponibile
+    if (data.printed !== undefined) {
+        const printStatus = data.printed
+            ? `✅ Stampato su: ${data.printerName}`
+            : '⚠️ Stampa non riuscita - PDF salvato in temp/';
+
+        showToast(printStatus, data.printed ? 'success' : 'warning');
+    }
+
+    elements.certificateForm.style.display = 'none';
+    elements.resultSection.style.display = 'block';
+
+    // Auto-reset dopo configurato delay (default 30 secondi)
+    state.autoResetTimeout = setTimeout(() => {
+        showToast('Revenire automată la ecranul inițial...', 'warning');
+        setTimeout(() => {
+            resetToKioskMode();
+        }, 3000);
+    }, config.autoResetDelay);
+}
+
+// ========================================
+// PRINT CERTIFICATE
+// ========================================
+function printCertificate() {
+    if (!state.currentPdfPath) {
+        showToast('Niciun PDF disponibil', 'error');
+        return;
+    }
+
+    // Estrai filename gestendo sia / che \ (Windows)
+    const filename = state.currentPdfPath.replace(/\\/g, '/').split('/').pop();
+    window.open(`/api/print-pdf/${filename}`, '_blank');
+}
+
+// ========================================
+// FORM VALIDATION
+// ========================================
+function validateForm() {
+    const isValid = state.selectedEmployee && state.selectedReason;
+    elements.generateBtn.disabled = !isValid;
+    return isValid;
+}
+
+function resetToKioskMode() {
+    // Clear any auto-reset timers
+    if (state.autoResetTimeout) {
+        clearTimeout(state.autoResetTimeout);
+        state.autoResetTimeout = null;
+    }
+
+    // Redirect alla pagina launcher principale
+    window.location.href = '/';
+}
+
+// ========================================
+// UI HELPERS
+// ========================================
+function showLoading(message = 'Încărcare...') {
+    elements.loadingOverlay.querySelector('.loading-text').textContent = message;
+    elements.loadingOverlay.style.display = 'flex';
+}
+
+function hideLoading() {
+    elements.loadingOverlay.style.display = 'none';
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️'
+    };
+
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+        <span class="toast-message">${message}</span>
+    `;
+
+    elements.toastContainer.appendChild(toast);
+
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        toast.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// ========================================
+// ERROR HANDLING
+// ========================================
+window.addEventListener('error', (event) => {
+    console.error('Global error:', event.error);
+    showToast('A apărut o eroare neașteptată', 'error');
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    showToast('Eroare de conexiune la server', 'error');
+});
+
+// ========================================
+// AUTO-SCROLL FOR INSTRUCTIONS
+// ========================================
+function initializeInstructionsAutoScroll() {
+    const instructionsList = document.querySelector('.instructions-list');
+
+    if (!instructionsList) {
+        return; // Non siamo nella pagina con le istruzioni
+    }
+
+    // Controlla se il contenuto eccede l'altezza del container
+    const containerHeight = 350; // Max height definito nel CSS
+    const contentHeight = instructionsList.scrollHeight;
+
+    console.log(`Instructions height check: container=${containerHeight}px, content=${contentHeight}px`);
+
+    if (contentHeight > containerHeight) {
+        // Attiva l'animazione di scorrimento
+        instructionsList.classList.add('auto-scroll');
+        console.log('✅ Auto-scroll attivato per le istruzioni');
+
+        // Calcola la durata dell'animazione in base all'altezza del contenuto
+        // Più contenuto = animazione più lenta per leggibilità
+        const scrollDuration = Math.max(20, (contentHeight / containerHeight) * 15);
+        instructionsList.style.animationDuration = `${scrollDuration}s`;
+
+        console.log(`Animation duration set to: ${scrollDuration}s`);
+    } else {
+        console.log('ℹ️ Contenuto istruzioni non richiede auto-scroll');
+    }
+}
+
+console.log('✅ App.js loaded successfully');
+

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk - Servicii Angajați</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/launcher.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Logo aziendale -->
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Company Logo" class="company-logo">
+        </div>
+
+        <!-- Titolo principale -->
+        <h1 class="main-title">Servicii pentru Angajați</h1>
+        <p class="subtitle">Selectați serviciul dorit</p>
+
+        <!-- Griglia bottoni -->
+        <div class="services-grid">
+            <!-- Bottone 1: Certificati -->
+            <a href="/certificati" class="service-card active">
+                <div class="card-icon">📄</div>
+                <h2 class="card-title">Adeverințe</h2>
+                <p class="card-description">Generare certificate și adeverințe</p>
+                <div class="card-badge">Disponibil</div>
+            </a>
+
+            <!-- Bottone 2: Raport Absențe -->
+            <a href="/absente" class="service-card active">
+                <div class="card-icon">📊</div>
+                <h2 class="card-title">Raport Absențe</h2>
+                <p class="card-description">Situație concedii, boli și permise</p>
+                <div class="card-badge">Disponibil</div>
+            </a>
+
+            <!-- Bottone 3: Cerere Absență -->
+            <a href="/cerere" class="service-card active">
+                <div class="card-icon">📝</div>
+                <h2 class="card-title">Cerere Absență</h2>
+                <p class="card-description">Solicitare concediu, permis sau altă absență</p>
+                <div class="card-badge">Disponibil</div>
+            </a>
+
+            <!-- Bottone 4: Verificare Stare Cerere -->
+            <a href="/verifica" class="service-card active">
+                <div class="card-icon">🔍</div>
+                <h2 class="card-title">Verificare Stare Cerere</h2>
+                <p class="card-description">Verificați starea cererii de absență</p>
+                <div class="card-badge">Disponibil</div>
+            </a>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2025 - Sistema Kiosk Angajați</p>
+        </div>
+    </div>
+
+    <!-- Animazioni e effetti -->
+    <script>
+        // Animazione cards al caricamento
+        document.addEventListener('DOMContentLoaded', function () {
+            const cards = document.querySelectorAll('.service-card');
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        card.style.transition = 'all 0.5s ease';
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 50);
+                }, index * 100);
+            });
+
+            // Effetto hover per card attive
+            const activeCards = document.querySelectorAll('.service-card.active');
+            activeCards.forEach(card => {
+                card.addEventListener('mouseenter', function () {
+                    this.style.transform = 'translateY(-10px) scale(1.02)';
+                });
+                card.addEventListener('mouseleave', function () {
+                    this.style.transform = 'translateY(0) scale(1)';
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

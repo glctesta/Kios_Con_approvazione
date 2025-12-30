@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificare Stare Cerere - Sistem HR</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="/static/logo.png" alt="Logo Companie" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1 class="title">Verificare Stare Cerere</h1>
+            <p class="subtitle">Introduceți numărul cererii pentru a verifica starea</p>
+
+            <!-- Bottone Torna Indietro -->
+            <a href="/" class="back-button" title="Torna alla pagina principale">
+                <span class="back-icon">🏠</span>
+                <span class="back-text">Pagina Principală</span>
+            </a>
+        </header>
+
+        <!-- Main Form -->
+        <main class="main-content">
+            <form id="checkForm" class="certificate-form">
+                <!-- Numero Richiesta -->
+                <div class="form-group">
+                    <label for="requestNumber" class="form-label">
+                        <span class="label-text">Număr Cerere *</span>
+                        <span class="label-helper">Introduceți numărul cererii (ex: 2025/001)</span>
+                    </label>
+                    <input type="text" id="requestNumber" name="requestNumber" class="form-input"
+                        placeholder="Ex: 2025/001" autocomplete="off" autofocus required>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="form-actions">
+                    <button type="submit" id="checkBtn" class="btn-primary">
+                        <span class="btn-icon">🔍</span>
+                        Verifică Starea
+                    </button>
+                    <button type="button" id="resetBtn" class="btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Resetează
+                    </button>
+                </div>
+            </form>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="result-section" style="display: none;">
+                <div class="result-card" id="resultCard">
+                    <div class="result-icon" id="resultIcon">❓</div>
+                    <h2 class="result-title" id="resultTitle">Stare Cerere</h2>
+                    <div class="result-details">
+                        <p><strong>Număr cerere:</strong> <span id="resultRequestNumber"></span></p>
+                        <p><strong>Data cerere:</strong> <span id="resultRequestDate"></span></p>
+                        <p><strong>Tip absență:</strong> <span id="resultRequestType"></span></p>
+                        <p><strong>Perioada:</strong> <span id="resultPeriod"></span></p>
+                        <p><strong>Zile lucrătoare:</strong> <span id="resultDays"></span></p>
+                        <hr style="margin: 20px 0; border: 1px solid #e5e7eb;">
+                        <p><strong>Stare:</strong> <span id="resultStatus" style="font-size: 1.2em;"></span></p>
+                        <p id="resultApprover" style="display: none;"><strong>Aprobat de:</strong> <span
+                                id="resultApprovedBy"></span></p>
+                    </div>
+                    <div class="result-actions">
+                        <button id="resendBtn" class="btn-primary" style="display: none;">
+                            <span class="btn-icon">📧</span>
+                            Retrimite Notificare
+                        </button>
+                        <button id="newCheckBtn" class="btn-secondary">
+                            Verifică Altă Cerere
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Se verifică cererea...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <script src="/static/js/check.js"></script>
+</body>
+
+</html>

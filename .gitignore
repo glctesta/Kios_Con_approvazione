@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Logs
+*.log
+app_debug.log
+
+# Database credentials (encrypted files are OK to commit)
+# db_config.enc
+# encryption_key.key
+# email_credentials.enc
+# email_key.key
+
+# Temporary files
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Deployment packages
+Kiosk_Deploy_*.zip
+deploy_temp/
+
+# Test files
+test_*.txt
+test_rfid_output.txt
+
+# Generated images (keep logo.png)
+generated-image.png
+
+# SQL dumps and queries
+*.sql
+*.txt
+*.ini
+
+# Visual Basic files
+*.vb

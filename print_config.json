@@ -1,0 +1,20 @@
+{
+    "printing": {
+        "enabled": true,
+        "auto_print": true,
+        "printer_name": null,
+        "use_default_printer": true,
+        "silent_print": true,
+        "print_method": "auto"
+    },
+    "pdf": {
+        "save_to_temp": true,
+        "temp_folder": "temp",
+        "auto_delete_after_print": false,
+        "keep_days": 7
+    },
+    "kiosk": {
+        "auto_reset_delay_seconds": 30,
+        "show_result_duration_seconds": 10
+    }
+}

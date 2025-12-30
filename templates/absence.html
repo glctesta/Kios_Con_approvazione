@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raport Absențe - Sistem HR</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-container">
+                <img src="/static/logo.png" alt="Logo Companie" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1 class="title">Raport Istoric Absențe</h1>
+            <p class="subtitle">Situație concedii, boli și permise</p>
+
+            <!-- Bottone Torna Indietro -->
+            <a href="/" class="back-button" title="Torna alla pagina principale">
+                <span class="back-icon">🏠</span>
+                <span class="back-text">Pagina Principală</span>
+            </a>
+        </header>
+
+        <!-- Main Form -->
+        <main class="main-content">
+            <form id="absenceForm" class="certificate-form">
+                <!-- Badge RFID Input -->
+                <div class="form-group">
+                    <label for="badgeInput" class="form-label">
+                        <span class="label-text">Badge RFID *</span>
+                        <span class="label-helper">Apropiați badge-ul de cititorul RFID</span>
+                    </label>
+                    <div class="badge-input-container">
+                        <input type="password" id="badgeInput" name="badge" class="form-input badge-input"
+                            placeholder="Așteptare citire badge..." autocomplete="off" autofocus required>
+                        <span class="badge-status" id="badgeStatus">
+                            <span class="status-icon">📱</span>
+                            <span class="status-text">În așteptare...</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Employee Info (Hidden until badge is read) -->
+                <div id="employeeInfo" class="employee-info" style="display: none;">
+                    <div class="info-card">
+                        <div class="info-icon">👤</div>
+                        <div class="info-content">
+                            <div class="info-label">Angajat selectat</div>
+                            <div class="info-value" id="employeeName"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Year Selection -->
+                <div class="form-group">
+                    <label for="yearSelect" class="form-label">
+                        <span class="label-text">An de referință *</span>
+                        <span class="label-helper">Selectați anul pentru care doriți raportul</span>
+                    </label>
+                    <select id="yearSelect" name="year" class="form-select" required>
+                        <!-- Populated by JavaScript -->
+                    </select>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="form-actions">
+                    <button type="submit" id="generateBtn" class="btn-primary" disabled>
+                        <span class="btn-icon">📊</span>
+                        Generează Raport
+                    </button>
+                    <button type="button" id="resetBtn" class="btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Resetează
+                    </button>
+                </div>
+            </form>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="result-section" style="display: none;">
+                <div class="result-card">
+                    <div class="result-icon">✅</div>
+                    <h2 class="result-title">Raport generat cu succes!</h2>
+                    <div class="result-details">
+                        <p><strong>Angajat:</strong> <span id="resultEmployee"></span></p>
+                        <p><strong>An:</strong> <span id="resultYear"></span></p>
+                        <p><strong>Data:</strong> <span id="resultDate"></span></p>
+                    </div>
+                    <div class="result-actions">
+                        <button id="printBtn" class="btn-primary">
+                            <span class="btn-icon">🖨️</span>
+                            Printează
+                        </button>
+                        <button id="newReportBtn" class="btn-secondary">
+                            Generează alt raport
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Se generează raportul...</p>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <script src="/static/js/absence.js"></script>
+</body>
+
+</html>
