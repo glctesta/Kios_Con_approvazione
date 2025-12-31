@@ -13,6 +13,7 @@ from PIL import Image
 import io
 import os
 import logging
+from utils import log_service_operation
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +242,9 @@ class CertificateGenerator:
         Returns:
             dict con success, document_number, pdf_path, etc.
         """
+        username = "Unknown"
+        service_name = f"Genera Certificato - {reason[:50]}"
+        
         try:
             # Determina tipo certificato
             registry_type_id = 737 if group_id == 2 else 736
@@ -254,6 +258,7 @@ class CertificateGenerator:
             
             # Recupera dati dipendente
             employee_data = self._get_employee_data(employee_hire_history_id)
+            username = employee_data.get('full_name', 'Unknown')
             
             # Recupera dati azienda
             company_data = self._get_company_data()
@@ -284,6 +289,15 @@ class CertificateGenerator:
                 # Prepara email
                 email_body = self._prepare_email_body(employee_data, 'Adeverința 7')
                 
+                # Log operazione riuscita
+                log_service_operation(
+                    self.conn,
+                    username=username,
+                    service_name=service_name,
+                    success=True,
+                    additional_info=f"Doc: {doc_info['doc_number']}, Type: Adeverința 7"
+                )
+                
                 return {
                     'success': True,
                     'document_number': doc_info['doc_number'],
@@ -303,6 +317,15 @@ class CertificateGenerator:
                     reason=typed_reason if typed_reason else reason
                 )
                 
+                # Log operazione riuscita
+                log_service_operation(
+                    self.conn,
+                    username=username,
+                    service_name=service_name,
+                    success=True,
+                    additional_info=f"Doc: {doc_info['doc_number']}, Type: Generico"
+                )
+                
                 return {
                     'success': True,
                     'document_number': doc_info['doc_number'],
@@ -314,6 +337,16 @@ class CertificateGenerator:
         
         except Exception as e:
             logger.error(f"Errore nella generazione certificato: {str(e)}")
+            
+            # Log operazione fallita
+            log_service_operation(
+                self.conn,
+                username=username,
+                service_name=service_name,
+                success=False,
+                error_message=str(e)
+            )
+            
             return {
                 'success': False,
                 'error': str(e)

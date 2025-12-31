@@ -221,6 +221,38 @@ body::before {
     animation: fadeInUp 0.8s ease 0.4s both;
 }
 
+/* GTMC Signature - Discreto */
+.gtmc-signature {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+}
+
+.gtmc-signature:hover {
+    opacity: 0.8;
+}
+
+.gtmc-signature span {
+    font-size: 0.75rem;
+    color: #a0aec0;
+    font-weight: 300;
+}
+
+.gtmc-logo {
+    height: 20px;
+    width: auto;
+    filter: grayscale(50%);
+    transition: filter 0.3s ease;
+}
+
+.gtmc-signature:hover .gtmc-logo {
+    filter: grayscale(0%);
+}
+
 /* Animazioni */
 @keyframes fadeInDown {
     from {

@@ -14,6 +14,7 @@ from absence_request import AbsenceRequestManager
 from badge_reader import BadgeReader
 from utils import send_email, get_email_recipients
 from pdf_printer import print_pdf_silent, get_default_printer
+from printer_keepalive import start_printer_keepalive, stop_printer_keepalive
 
 # Configurazione logging
 logging.basicConfig(
@@ -612,7 +613,9 @@ def submit_absence_request():
         # Salva richiesta assenza
         logger.info("Salvataggio richiesta assenza...")
         absence_request_id = request_manager.save_absence_request(
-            registro_id, hire_history_id, request_type_id, date_start, date_end
+            registro_id, hire_history_id, request_type_id, date_start, date_end,
+            username=employee_name,
+            request_type_name=request_type_name
         )
         
         if not absence_request_id:
@@ -1122,5 +1125,14 @@ if __name__ == '__main__':
     # Crea directory temp se non esiste
     os.makedirs('temp', exist_ok=True)
     
-    # Avvia server
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Avvia servizio keep-alive stampante (ogni 5 minuti)
+    logger.info("Avvio Printer Keep-Alive service...")
+    start_printer_keepalive(interval_seconds=300)
+    
+    try:
+        # Avvia server
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    finally:
+        # Arresta keep-alive alla chiusura
+        logger.info("Arresto Printer Keep-Alive service...")
+        stop_printer_keepalive()

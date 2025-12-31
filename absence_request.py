@@ -13,6 +13,7 @@ from reportlab.platypus import Table, TableStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.utils import ImageReader
+from utils import log_service_operation
 
 logger = logging.getLogger(__name__)
 
@@ -407,7 +408,7 @@ class AbsenceRequestManager:
             return None
     
     def save_absence_request(self, registro_id, hire_history_id, request_type_id, 
-                            date_start, date_end):
+                            date_start, date_end, username="Unknown", request_type_name="Richiesta Assenza"):
         """Salva richiesta assenza nel database"""
         try:
             cursor = self.conn.cursor()
@@ -433,6 +434,16 @@ class AbsenceRequestManager:
             self.conn.commit()
             
             logger.info(f"Richiesta assenza salvata: AbsenceRequestId = {absence_request_id}")
+            
+            # Log operazione riuscita
+            log_service_operation(
+                self.conn,
+                username=username,
+                service_name=f"Richiesta Assenza - {request_type_name}",
+                success=True,
+                additional_info=f"Periodo: {date_start} - {date_end}, RequestId: {absence_request_id}"
+            )
+            
             return absence_request_id
             
         except Exception as e:
@@ -440,6 +451,16 @@ class AbsenceRequestManager:
             import traceback
             logger.error(traceback.format_exc())
             self.conn.rollback()
+            
+            # Log operazione fallita
+            log_service_operation(
+                self.conn,
+                username=username,
+                service_name=f"Richiesta Assenza - {request_type_name}",
+                success=False,
+                error_message=str(e)
+            )
+            
             return None
     
     def get_manager_emails(self, employee_hire_history_id):

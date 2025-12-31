@@ -450,6 +450,51 @@ class AbsenceReportGenerator:
             logger.error(f"Errore recupero regole bonus: {str(e)}")
             return []
     
+    def _draw_disclaimer_footer(self, canvas_obj, width, y_position=30):
+        """
+        Disegna il disclaimer in rumeno nel footer della pagina
+        
+        Args:
+            canvas_obj: Oggetto canvas di ReportLab
+            width: Larghezza della pagina
+            y_position: Posizione Y del footer (default: 30)
+        """
+        disclaimer_text = (
+            "Dacă datele solicitate nu corespund cu ceea ce vă amintiți, vă rugăm să vă adresați "
+            "biroului de Personal al Vandewiele România. Țineți cont că sistemul este în fază de "
+            "dezvoltare și ar putea genera erori. Ne cerem scuze în avans, în cazul în care ar trebui "
+            "să se întâmple. Vă mulțumim pentru înțelegere, Biroul Resurse Umane."
+        )
+        
+        canvas_obj.setFont(self.font_name, 8)
+        
+        # Calcola larghezza massima per il testo (margini 50px per lato)
+        max_width = width - 100
+        
+        # Dividi il testo in righe
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        words = disclaimer_text.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            if stringWidth(test_line, self.font_name, 8) <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        # Disegna le righe centrate
+        y = y_position
+        for line in reversed(lines):  # Inizia dal basso
+            canvas_obj.drawCentredString(width / 2, y, line)
+            y += 10  # Spaziatura tra le righe
+    
     def _generate_pdf(self, data, year):
         """Genera PDF report"""
         try:
@@ -573,6 +618,9 @@ class AbsenceReportGenerator:
             
             y -= 100
             
+            # Disclaimer in rumeno (prima pagina)
+            self._draw_disclaimer_footer(c, width, y_position=30)
+            
             # Nuova pagina per regole bonus
             c.showPage()
             
@@ -633,10 +681,8 @@ class AbsenceReportGenerator:
             y -= 15
             c.drawString(50, y, "• Concediul neefectuat se reportează în anul următor")
             
-            # Footer
-            y = 50
-            c.setFont(self.font_name, 8)
-            c.drawCentredString(width / 2, y, f"Document generat automat - {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+            # Disclaimer in rumeno
+            self._draw_disclaimer_footer(c, width, y_position=30)
             
             c.save()
             

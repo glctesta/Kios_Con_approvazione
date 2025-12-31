@@ -144,3 +144,55 @@ def get_employee_work_email(conn, employee_name: str) -> Optional[str]:
     except Exception as e:
         logger.error(f"Errore nel recupero della WorkEmail per {employee_name}: {e}")
         raise
+
+
+def log_service_operation(
+    conn,
+    username: str,
+    service_name: str,
+    success: bool,
+    error_message: Optional[str] = None,
+    additional_info: Optional[str] = None
+) -> None:
+    """
+    Registra un'operazione del servizio nel database Employee.dbo.ServiceOperationLog
+    
+    Args:
+        conn: Connessione al database
+        username: Nome utente che ha richiesto il servizio (es. badge, nome dipendente)
+        service_name: Nome del servizio richiesto (es. "Genera Certificato", "Richiesta Assenza")
+        success: True se l'operazione è andata a buon fine, False altrimenti
+        error_message: Messaggio di errore in caso di fallimento (opzionale)
+        additional_info: Informazioni aggiuntive sull'operazione (opzionale)
+    
+    Note:
+        La tabella ServiceOperationLog deve essere creata nel database Employee.
+        Timestamp viene generato automaticamente dal database (GETDATE()).
+    """
+    try:
+        query = """
+        INSERT INTO Employee.dbo.ServiceOperationLog 
+            (Username, ServiceName, Success, ErrorMessage, AdditionalInfo)
+        VALUES (?, ?, ?, ?, ?)
+        """
+        
+        with conn.cursor() as cursor:
+            cursor.execute(
+                query,
+                (
+                    username[:100],  # Limita a 100 caratteri
+                    service_name[:200],  # Limita a 200 caratteri
+                    1 if success else 0,  # Converti bool a bit
+                    error_message[:4000] if error_message else None,  # Limita lunghezza
+                    additional_info[:4000] if additional_info else None  # Limita lunghezza
+                )
+            )
+            conn.commit()
+        
+        logger.debug(f"Operazione loggata: {service_name} - {username} - {'Success' if success else 'Failed'}")
+        
+    except Exception as e:
+        # Non sollevare eccezione per non bloccare il servizio principale
+        # ma logga l'errore
+        logger.error(f"Errore nel logging dell'operazione {service_name} per {username}: {e}")
+        # Non fare raise per non interrompere il flusso principale
