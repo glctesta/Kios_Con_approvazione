@@ -49,6 +49,7 @@ generated-image.png
 # SQL dumps and queries
 *.sql
 *.txt
+!requirements.txt
 *.ini
 
 # Visual Basic files

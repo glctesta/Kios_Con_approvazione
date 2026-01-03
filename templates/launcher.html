@@ -53,10 +53,21 @@
                 <div class="card-badge">Disponibil</div>
             </a>
 
-            <!-- Riquadro News/Slideshow -->
-            <div class="news-slideshow-container">
-                <!-- Contenitore News -->
-                <div id="newsContainer" class="news-display" style="display: none;">
+            <!-- Frame Slideshow -->
+            <div class="slideshow-container">
+                <div id="slideshowFrame" class="slideshow-display">
+                    <img id="slideshowImage" src="" alt="Slideshow" class="slideshow-image">
+
+                </div>
+                <div id="slideshowLoading" class="loading-display" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Caricamento slideshow...</p>
+                </div>
+            </div>
+
+            <!-- Frame News -->
+            <div class="news-container">
+                <div id="newsFrame" class="news-display" style="display: none;">
                     <div class="news-header">
                         <span class="news-icon">📢</span>
                         <span class="news-title">Comunicare Importantă</span>
@@ -69,19 +80,9 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Contenitore Slideshow -->
-                <div id="slideshowContainer" class="slideshow-display" style="display: none;">
-                    <img id="slideshowImage" src="" alt="Slideshow" class="slideshow-image">
-                    <div class="slideshow-overlay">
-                        <span class="slideshow-counter" id="slideshowCounter"></span>
-                    </div>
-                </div>
-
-                <!-- Messaggio di caricamento -->
-                <div id="loadingContainer" class="loading-display">
+                <div id="newsLoading" class="loading-display">
                     <div class="loading-spinner"></div>
-                    <p>Caricamento...</p>
+                    <p>Caricamento news...</p>
                 </div>
             </div>
         </div>
@@ -132,46 +133,72 @@
                 });
             });
 
-            // Inizializza news/slideshow
-            initializeNewsSlideshow();
+            // Inizializza news e slideshow in parallelo
+            initializeNewsAndSlideshow();
         });
 
-        async function initializeNewsSlideshow() {
+        async function initializeNewsAndSlideshow() {
+            // Inizializza slideshow e news in parallelo
+            initializeSlideshow();
+            initializeNews();
+        }
+
+        async function initializeSlideshow() {
+            const slideshowFrame = document.getElementById('slideshowFrame');
+            const slideshowLoading = document.getElementById('slideshowLoading');
+
             try {
-                // Recupera news dal database
-                const newsResponse = await fetch('/api/news');
-                const newsResult = await newsResponse.json();
+                slideshowLoading.style.display = 'flex';
+                slideshowFrame.style.display = 'none';
 
-                if (newsResult.success && newsResult.has_news && newsResult.news.length > 0) {
-                    // Ci sono news da mostrare
-                    newsData = newsResult.news;
-                    startNewsRotation();
+                const imagesResponse = await fetch('/api/slideshow-images');
+                const imagesResult = await imagesResponse.json();
+
+                if (imagesResult.success && imagesResult.images.length > 0) {
+                    slideshowImages = imagesResult.images;
+                    slideshowLoading.style.display = 'none';
+                    slideshowFrame.style.display = 'block';
+                    startSlideshow();
                 } else {
-                    // Nessuna news, mostra slideshow immagini
-                    const imagesResponse = await fetch('/api/slideshow-images');
-                    const imagesResult = await imagesResponse.json();
-
-                    if (imagesResult.success && imagesResult.images.length > 0) {
-                        slideshowImages = imagesResult.images;
-                        startSlideshow();
-                    } else {
-                        // Nessuna immagine disponibile
-                        showNoContent();
-                    }
+                    slideshowLoading.innerHTML = '<p style="color: #718096;">Nessuna immagine disponibile</p>';
                 }
             } catch (error) {
-                console.error('Errore inizializzazione news/slideshow:', error);
-                showNoContent();
+                console.error('Errore caricamento slideshow:', error);
+                slideshowLoading.innerHTML = '<p style="color: #e53e3e;">Errore caricamento slideshow</p>';
             }
         }
 
+        async function initializeNews() {
+            const newsFrame = document.getElementById('newsFrame');
+            const newsLoading = document.getElementById('newsLoading');
+
+            try {
+                newsLoading.style.display = 'flex';
+                newsFrame.style.display = 'none';
+
+                const newsResponse = await fetch('/api/news');
+                const newsResult = await newsResponse.json();
+
+                console.log('News API Response:', newsResult);
+
+                if (newsResult.success && newsResult.has_news && newsResult.news.length > 0) {
+                    newsData = newsResult.news;
+                    newsLoading.style.display = 'none';
+                    newsFrame.style.display = 'block';
+                    console.log('Starting news rotation with', newsData.length, 'news items');
+                    startNewsRotation();
+                } else {
+                    console.log('No news available');
+                    newsLoading.innerHTML = '<p style="color: #718096;">Nessuna comunicazione al momento</p>';
+                }
+            } catch (error) {
+                console.error('Errore caricamento news:', error);
+                newsLoading.innerHTML = '<p style="color: #e53e3e;">Errore caricamento news</p>';
+            }
+        }
+
+
         function startNewsRotation() {
-            const newsContainer = document.getElementById('newsContainer');
-            const loadingContainer = document.getElementById('loadingContainer');
-
-            loadingContainer.style.display = 'none';
-            newsContainer.style.display = 'block';
-
             // Mostra prima news
             displayNews(0);
 
@@ -219,13 +246,8 @@
             }, 300);
         }
 
+
         function startSlideshow() {
-            const slideshowContainer = document.getElementById('slideshowContainer');
-            const loadingContainer = document.getElementById('loadingContainer');
-
-            loadingContainer.style.display = 'none';
-            slideshowContainer.style.display = 'block';
-
             // Mostra prima immagine random
             displayRandomImage();
 
@@ -243,7 +265,6 @@
             // Seleziona immagine random
             const randomIndex = Math.floor(Math.random() * slideshowImages.length);
             const imageEl = document.getElementById('slideshowImage');
-            const counterEl = document.getElementById('slideshowCounter');
 
             // Animazione fade
             imageEl.style.opacity = '0';
@@ -251,11 +272,7 @@
             setTimeout(() => {
                 imageEl.src = slideshowImages[randomIndex];
 
-                if (slideshowImages.length > 1) {
-                    counterEl.textContent = `${slideshowImages.length} immagini`;
-                } else {
-                    counterEl.textContent = '';
-                }
+
 
                 imageEl.style.opacity = '1';
             }, 300);

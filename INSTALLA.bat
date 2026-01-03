@@ -2,14 +2,21 @@
 REM ========================================
 REM KIOSK HR - Sistema Adeverințe
 REM Script di Installazione Automatica
-REM Versione: 2.1.1
+REM Versione: 2.2.0
 REM Data: 2026-01-03
 REM ========================================
+
+REM Imposta la directory corrente a quella dello script
+REM Questo evita problemi quando viene eseguito come amministratore
+cd /d "%~dp0"
 
 echo.
 echo ========================================
 echo   KIOSK HR - Installazione Sistema
+echo   Versione 2.2.0
 echo ========================================
+echo.
+echo Directory installazione: %CD%
 echo.
 
 REM Verifica privilegi amministratore

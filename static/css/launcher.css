@@ -320,10 +320,11 @@ body::before {
 }
 
 /* ========================================
-   NEWS & SLIDESHOW CONTAINER
+   SLIDESHOW & NEWS CONTAINERS (SEPARATI)
    ======================================== */
 
-.news-slideshow-container {
+.slideshow-container,
+.news-container {
     position: relative;
     background: white;
     border-radius: 20px;
@@ -335,6 +336,10 @@ body::before {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.news-container {
+    border-color: #f59e0b;
 }
 
 /* NEWS DISPLAY */
