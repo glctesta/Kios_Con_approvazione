@@ -150,14 +150,23 @@ VALUES ('2026-01-03 08:00:00', '2026-01-05 18:00:00',
 
 ### Convenzione Nomi File
 
-**IMPORTANTE**: Solo le immagini il cui nome inizia con la lettera **'X'** (maiuscola o minuscola) vengono incluse nello slideshow.
+**IMPORTANTE**: Solo le immagini il cui nome inizia con la lettera **'X'** o **'S'** (maiuscola o minuscola) vengono incluse nello slideshow.
 
 Esempi validi:
 - ✅ `X_evento_aziendale.jpg`
 - ✅ `x_natale_2025.png`
 - ✅ `Xmas_party.jpg`
-- ❌ `evento.jpg` (non inizia con X)
-- ❌ `natale.png` (non inizia con X)
+- ✅ `S_safety_week.jpg`
+- ✅ `s51.jpg`
+- ❌ `evento.jpg` (non inizia con X o S)
+- ❌ `natale.png` (non inizia con X o S)
+
+### Ordine di Visualizzazione
+
+Le immagini vengono mostrate in **ordine casuale (random)**:
+- Ad ogni cambio immagine viene selezionata una foto casuale
+- Questo garantisce varietà e imprevedibilità
+- L'ordine cambia ad ogni caricamento della pagina
 
 ### Aggiungere Immagini
 

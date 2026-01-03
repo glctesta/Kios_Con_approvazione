@@ -162,8 +162,10 @@ def get_news():
 
 @app.route('/api/slideshow-images', methods=['GET'])
 def get_slideshow_images():
-    """Recupera lista immagini disponibili per slideshow (solo file che iniziano con X)"""
+    """Recupera lista immagini disponibili per slideshow (file che iniziano con X o S, ordine random)"""
     try:
+        import random
+        
         images_dir = os.path.join(app.root_path, 'Images')
         
         if not os.path.exists(images_dir):
@@ -177,14 +179,18 @@ def get_slideshow_images():
         
         images = []
         for filename in os.listdir(images_dir):
-            # Filtra solo file che iniziano con 'X' (case-insensitive)
-            if not filename.upper().startswith('X'):
+            # Filtra solo file che iniziano con 'X' o 'S' (case-insensitive)
+            first_char = filename.upper()[0] if filename else ''
+            if first_char not in ['X', 'S']:
                 continue
                 
             ext = os.path.splitext(filename)[1].lower()
             if ext in valid_extensions:
                 # URL relativo per accedere all'immagine
                 images.append(f"/images/{filename}")
+        
+        # Randomizza l'ordine delle immagini
+        random.shuffle(images)
         
         return jsonify({
             'success': True,

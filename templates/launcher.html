@@ -226,16 +226,39 @@
             loadingContainer.style.display = 'none';
             slideshowContainer.style.display = 'block';
 
-            // Mostra prima immagine
-            displayImage(0);
+            // Mostra prima immagine random
+            displayRandomImage();
 
             // Ruota immagini ogni 5 secondi
             if (slideshowImages.length > 1) {
                 slideshowInterval = setInterval(() => {
-                    currentImageIndex = (currentImageIndex + 1) % slideshowImages.length;
-                    displayImage(currentImageIndex);
+                    displayRandomImage();
                 }, 5000);
             }
+        }
+
+        function displayRandomImage() {
+            if (slideshowImages.length === 0) return;
+
+            // Seleziona immagine random
+            const randomIndex = Math.floor(Math.random() * slideshowImages.length);
+            const imageEl = document.getElementById('slideshowImage');
+            const counterEl = document.getElementById('slideshowCounter');
+
+            // Animazione fade
+            imageEl.style.opacity = '0';
+
+            setTimeout(() => {
+                imageEl.src = slideshowImages[randomIndex];
+
+                if (slideshowImages.length > 1) {
+                    counterEl.textContent = `${slideshowImages.length} immagini`;
+                } else {
+                    counterEl.textContent = '';
+                }
+
+                imageEl.style.opacity = '1';
+            }, 300);
         }
 
         function displayImage(index) {
