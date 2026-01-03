@@ -52,6 +52,38 @@
                 <p class="card-description">Verificați starea cererii de absență</p>
                 <div class="card-badge">Disponibil</div>
             </a>
+
+            <!-- Riquadro News/Slideshow -->
+            <div class="news-slideshow-container">
+                <!-- Contenitore News -->
+                <div id="newsContainer" class="news-display" style="display: none;">
+                    <div class="news-header">
+                        <span class="news-icon">📢</span>
+                        <span class="news-title">Comunicare Importantă</span>
+                    </div>
+                    <div class="news-content">
+                        <p id="newsMessage" class="news-message"></p>
+                        <div class="news-footer">
+                            <span id="newsPublisher" class="news-publisher"></span>
+                            <span id="newsIndicator" class="news-indicator"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenitore Slideshow -->
+                <div id="slideshowContainer" class="slideshow-display" style="display: none;">
+                    <img id="slideshowImage" src="" alt="Slideshow" class="slideshow-image">
+                    <div class="slideshow-overlay">
+                        <span class="slideshow-counter" id="slideshowCounter"></span>
+                    </div>
+                </div>
+
+                <!-- Messaggio di caricamento -->
+                <div id="loadingContainer" class="loading-display">
+                    <div class="loading-spinner"></div>
+                    <p>Caricamento...</p>
+                </div>
+            </div>
         </div>
 
         <!-- Footer -->
@@ -66,6 +98,14 @@
 
     <!-- Animazioni e effetti -->
     <script>
+        // Variabili globali per news e slideshow
+        let newsData = [];
+        let currentNewsIndex = 0;
+        let newsInterval = null;
+        let slideshowImages = [];
+        let currentImageIndex = 0;
+        let slideshowInterval = null;
+
         // Animazione cards al caricamento
         document.addEventListener('DOMContentLoaded', function () {
             const cards = document.querySelectorAll('.service-card');
@@ -91,7 +131,137 @@
                     this.style.transform = 'translateY(0) scale(1)';
                 });
             });
+
+            // Inizializza news/slideshow
+            initializeNewsSlideshow();
         });
+
+        async function initializeNewsSlideshow() {
+            try {
+                // Recupera news dal database
+                const newsResponse = await fetch('/api/news');
+                const newsResult = await newsResponse.json();
+
+                if (newsResult.success && newsResult.has_news && newsResult.news.length > 0) {
+                    // Ci sono news da mostrare
+                    newsData = newsResult.news;
+                    startNewsRotation();
+                } else {
+                    // Nessuna news, mostra slideshow immagini
+                    const imagesResponse = await fetch('/api/slideshow-images');
+                    const imagesResult = await imagesResponse.json();
+
+                    if (imagesResult.success && imagesResult.images.length > 0) {
+                        slideshowImages = imagesResult.images;
+                        startSlideshow();
+                    } else {
+                        // Nessuna immagine disponibile
+                        showNoContent();
+                    }
+                }
+            } catch (error) {
+                console.error('Errore inizializzazione news/slideshow:', error);
+                showNoContent();
+            }
+        }
+
+        function startNewsRotation() {
+            const newsContainer = document.getElementById('newsContainer');
+            const loadingContainer = document.getElementById('loadingContainer');
+
+            loadingContainer.style.display = 'none';
+            newsContainer.style.display = 'block';
+
+            // Mostra prima news
+            displayNews(0);
+
+            // Se ci sono più news, ruota ogni 8 secondi
+            if (newsData.length > 1) {
+                newsInterval = setInterval(() => {
+                    currentNewsIndex = (currentNewsIndex + 1) % newsData.length;
+                    displayNews(currentNewsIndex);
+                }, 8000);
+            }
+        }
+
+        function displayNews(index) {
+            const news = newsData[index];
+            const messageEl = document.getElementById('newsMessage');
+            const publisherEl = document.getElementById('newsPublisher');
+            const indicatorEl = document.getElementById('newsIndicator');
+
+            // Animazione fade out
+            messageEl.style.opacity = '0';
+            publisherEl.style.opacity = '0';
+
+            setTimeout(() => {
+                messageEl.textContent = news.message;
+                publisherEl.textContent = `📝 ${news.publisher}`;
+
+                // Indicatore se ci sono più news
+                if (newsData.length > 1) {
+                    indicatorEl.textContent = `${index + 1} / ${newsData.length}`;
+                } else {
+                    indicatorEl.textContent = '';
+                }
+
+                // Cambia colore header se mandatory
+                const newsHeader = document.querySelector('.news-header');
+                if (news.is_mandatory) {
+                    newsHeader.style.background = 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)';
+                } else {
+                    newsHeader.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                }
+
+                // Animazione fade in
+                messageEl.style.opacity = '1';
+                publisherEl.style.opacity = '1';
+            }, 300);
+        }
+
+        function startSlideshow() {
+            const slideshowContainer = document.getElementById('slideshowContainer');
+            const loadingContainer = document.getElementById('loadingContainer');
+
+            loadingContainer.style.display = 'none';
+            slideshowContainer.style.display = 'block';
+
+            // Mostra prima immagine
+            displayImage(0);
+
+            // Ruota immagini ogni 5 secondi
+            if (slideshowImages.length > 1) {
+                slideshowInterval = setInterval(() => {
+                    currentImageIndex = (currentImageIndex + 1) % slideshowImages.length;
+                    displayImage(currentImageIndex);
+                }, 5000);
+            }
+        }
+
+        function displayImage(index) {
+            const imageEl = document.getElementById('slideshowImage');
+            const counterEl = document.getElementById('slideshowCounter');
+
+            // Animazione fade
+            imageEl.style.opacity = '0';
+
+            setTimeout(() => {
+                imageEl.src = slideshowImages[index];
+
+                if (slideshowImages.length > 1) {
+                    counterEl.textContent = `${index + 1} / ${slideshowImages.length}`;
+                } else {
+                    counterEl.textContent = '';
+                }
+
+                imageEl.style.opacity = '1';
+            }, 300);
+        }
+
+        function showNoContent() {
+            const loadingContainer = document.getElementById('loadingContainer');
+            loadingContainer.innerHTML = '<p style="color: #718096;">Nessun contenuto disponibile</p>';
+        }
     </script>
 </body>
 

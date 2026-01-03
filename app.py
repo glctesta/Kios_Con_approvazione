@@ -79,6 +79,134 @@ def favicon():
     )
 
 
+@app.route('/api/news', methods=['GET'])
+def get_news():
+    """Recupera messaggi news dal database con priorità per mandatory"""
+    try:
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+        
+        cursor = conn.cursor()
+        
+        # Data attuale
+        current_date = datetime.now()
+        
+        # Query per recuperare news attive
+        query = """
+        SELECT 
+            NewId,
+            EmployeerId,
+            StartNews,
+            EndNews,
+            News,
+            Publisher,
+            IsMandatory
+        FROM [Employee].[dbo].[News]
+        WHERE StartNews <= ? AND EndNews >= ?
+        ORDER BY IsMandatory DESC, StartNews ASC
+        """
+        
+        cursor.execute(query, (current_date, current_date))
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return jsonify({
+                'success': True,
+                'has_news': False,
+                'news': []
+            })
+        
+        # Separa news mandatory da quelle normali
+        mandatory_news = []
+        regular_news = []
+        
+        for row in rows:
+            news_item = {
+                'id': row[0],
+                'employee_id': row[1],
+                'start_date': row[2].isoformat() if row[2] else None,
+                'end_date': row[3].isoformat() if row[3] else None,
+                'message': row[4],
+                'publisher': row[5],
+                'is_mandatory': bool(row[6])
+            }
+            
+            if news_item['is_mandatory']:
+                mandatory_news.append(news_item)
+            else:
+                regular_news.append(news_item)
+        
+        # Se ci sono news mandatory, mostra solo quelle
+        if mandatory_news:
+            return jsonify({
+                'success': True,
+                'has_news': True,
+                'news': mandatory_news,
+                'is_mandatory': True
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'has_news': True,
+                'news': regular_news,
+                'is_mandatory': False
+            })
+        
+    except Exception as e:
+        logger.error(f"Errore recupero news: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/slideshow-images', methods=['GET'])
+def get_slideshow_images():
+    """Recupera lista immagini disponibili per slideshow (solo file che iniziano con X)"""
+    try:
+        images_dir = os.path.join(app.root_path, 'Images')
+        
+        if not os.path.exists(images_dir):
+            return jsonify({
+                'success': True,
+                'images': []
+            })
+        
+        # Estensioni immagini supportate
+        valid_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+        
+        images = []
+        for filename in os.listdir(images_dir):
+            # Filtra solo file che iniziano con 'X' (case-insensitive)
+            if not filename.upper().startswith('X'):
+                continue
+                
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in valid_extensions:
+                # URL relativo per accedere all'immagine
+                images.append(f"/images/{filename}")
+        
+        return jsonify({
+            'success': True,
+            'images': images
+        })
+        
+    except Exception as e:
+        logger.error(f"Errore recupero immagini slideshow: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    """Serve immagini dalla directory Images"""
+    try:
+        images_dir = os.path.join(app.root_path, 'Images')
+        return send_from_directory(images_dir, filename)
+    except Exception as e:
+        logger.error(f"Errore serving immagine: {str(e)}")
+        return jsonify({'success': False, 'error': 'Immagine non trovata'}), 404
+
+
 @app.route('/api/validate-badge', methods=['POST'])
 def validate_badge():
     """Valida badge RFID e recupera dati dipendente"""
