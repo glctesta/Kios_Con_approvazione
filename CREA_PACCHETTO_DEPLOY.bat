@@ -1,166 +1,164 @@
 @echo off
 REM ========================================
-REM   Crea Pacchetto Deployment Kiosk
-REM   Versione 2.1 - Gestione Assenze
+REM KIOSK HR - Creazione Pacchetto Deploy
+REM Versione: 2.2.0
+REM Data: 2026-01-03
 REM ========================================
 
 echo.
 echo ========================================
-echo   Preparazione Pacchetto Deployment
+echo   KIOSK HR - Creazione Pacchetto
+echo   Versione 2.2.0
 echo ========================================
 echo.
 
-cd /d "%~dp0"
-
-REM Nome pacchetto con timestamp
+REM Imposta nome pacchetto con timestamp
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
-set PACKAGE_NAME=Kiosk_Deploy_%datetime:~0,8%_%datetime:~8,6%
+set TIMESTAMP=%datetime:~0,8%_%datetime:~8,6%
+set PACKAGE_NAME=Kiosk_HR_v2.2.0_%TIMESTAMP%.zip
 
-echo Creazione pacchetto: %PACKAGE_NAME%.zip
-echo.
-
-REM Crea cartella temporanea
-if exist deploy_temp rmdir /s /q deploy_temp
+echo [1/6] Preparazione directory temporanea...
+if exist "deploy_temp" rmdir /s /q deploy_temp
 mkdir deploy_temp
-
-echo [1/7] Copia file Python...
-copy /Y *.py deploy_temp\ >nul 2>&1
-echo   - File .py copiati
-
-echo [2/7] Copia file configurazione...
-copy /Y requirements.txt deploy_temp\ >nul 2>&1
-copy /Y print_config.json deploy_temp\ >nul 2>&1
-copy /Y *.bat deploy_temp\ >nul 2>&1
-echo   - requirements.txt copiato
-echo   - print_config.json copiato
-echo   - File .bat copiati
-
-echo [3/7] Copia documentazione...
-copy /Y *.md deploy_temp\ >nul 2>&1
-echo   - File .md copiati
-
-echo [4/9] Copia risorse...
-copy /Y logo.png deploy_temp\ >nul 2>&1
-echo   - logo.png copiato
-
-echo [5/9] Copia font DejaVuSans...
-copy /Y DejaVuSans.ttf deploy_temp\ >nul 2>&1
-copy /Y DejaVuSans-Bold.ttf deploy_temp\ >nul 2>&1
-if exist DejaVuSans.ttf (
-    echo   - Font DejaVuSans copiati
-) else (
-    echo   ! ATTENZIONE: Font DejaVuSans non trovati
-)
-
-echo [6/9] Copia DLL lettore RFID...
-if exist IDReader.dll (
-    copy /Y IDReader.dll deploy_temp\ >nul 2>&1
-    echo   - IDReader.dll copiato
-) else (
-    echo   ! ATTENZIONE: IDReader.dll non trovato
-)
-
-echo [7/9] Copia cartelle templates e static...
-xcopy /E /I /Y templates deploy_temp\templates\ >nul 2>&1
-xcopy /E /I /Y static deploy_temp\static\ >nul 2>&1
-echo   - templates\ copiato
-echo   - static\ copiato
-
-echo [8/9] Copia configurazione database...
-if exist db_config.enc (
-    copy /Y db_config.enc deploy_temp\ >nul 2>&1
-    echo   - db_config.enc copiato
-) else (
-    echo   ! ATTENZIONE: db_config.enc non trovato
-)
-
-if exist encryption_key.key (
-    copy /Y encryption_key.key deploy_temp\ >nul 2>&1
-    echo   - encryption_key.key copiato
-) else (
-    echo   ! ATTENZIONE: encryption_key.key non trovato
-)
-
-echo [9/9] Crea struttura cartelle...
-mkdir deploy_temp\temp >nul 2>&1
-echo   - Cartella temp\ creata
+echo [OK] Directory creata
 
 echo.
-echo Creazione archivio ZIP...
-powershell -Command "Compress-Archive -Path 'deploy_temp\*' -DestinationPath '%PACKAGE_NAME%.zip' -Force"
+echo [2/6] Copia file applicazione...
+REM File Python principali
+copy app.py deploy_temp\ >nul
+copy absence_report.py deploy_temp\ >nul
+copy absence_request.py deploy_temp\ >nul
+copy badge_reader.py deploy_temp\ >nul
+copy certificate_generator.py deploy_temp\ >nul
+copy config_manager.py deploy_temp\ >nul
+copy db_connection.py deploy_temp\ >nul
+copy digital_signature.py deploy_temp\ >nul
+copy email_connector.py deploy_temp\ >nul
+copy pdf_printer.py deploy_temp\ >nul
+copy printer_keepalive.py deploy_temp\ >nul
+copy rfid_reader.py deploy_temp\ >nul
+copy setup.py deploy_temp\ >nul
+copy update_signature.py deploy_temp\ >nul
+copy utils.py deploy_temp\ >nul
+copy requirements.txt deploy_temp\ >nul
+echo [OK] File Python copiati
 
-if exist %PACKAGE_NAME%.zip (
+echo.
+echo [3/6] Copia templates e static...
+xcopy /E /I /Q templates deploy_temp\templates >nul
+xcopy /E /I /Q static deploy_temp\static >nul
+echo [OK] Templates e static copiati
+
+echo.
+echo [4/6] Copia file configurazione e risorse...
+REM Font
+copy DejaVuSans.ttf deploy_temp\ >nul
+copy DejaVuSans-Bold.ttf deploy_temp\ >nul
+
+REM Loghi
+copy logo.png deploy_temp\ >nul
+copy GTMC.png deploy_temp\ >nul
+
+REM DLL RFID (se presente)
+if exist "IDReader.dll" copy IDReader.dll deploy_temp\ >nul
+
+REM File configurazione (template vuoti - l'utente dovrà configurare)
+if exist "print_config.json" copy print_config.json deploy_temp\ >nul
+
+REM Chiavi di crittografia (ATTENZIONE: solo per deploy su stessa macchina)
+if exist "encryption_key.key" copy encryption_key.key deploy_temp\ >nul
+if exist "email_key.key" copy email_key.key deploy_temp\ >nul
+if exist "db_config.enc" copy db_config.enc deploy_temp\ >nul
+if exist "email_credentials.enc" copy email_credentials.enc deploy_temp\ >nul
+
+echo [OK] File configurazione copiati
+
+echo.
+echo [5/6] Copia script e documentazione...
+REM Script di installazione e avvio
+copy INSTALLA.bat deploy_temp\ >nul
+copy START_APP.bat deploy_temp\ >nul
+copy START_SISTEMA_KIOSK.bat deploy_temp\ >nul
+copy AGGIORNA_FIRMA.bat deploy_temp\ >nul
+
+REM Documentazione
+copy README.md deploy_temp\ >nul
+copy INSTALLAZIONE_MANUALE.md deploy_temp\ >nul
+copy DEPLOYMENT.md deploy_temp\ >nul
+copy GUIDA_RAPIDA.md deploy_temp\ >nul
+copy GUIDA_RFID.md deploy_temp\ >nul
+copy GUIDA_KIOSK_FULLSCREEN.md deploy_temp\ >nul
+copy GUIDA_NEWS_SLIDESHOW.md deploy_temp\ >nul
+copy CONFIGURAZIONE_RETE.md deploy_temp\ >nul
+copy STAMPA_AUTOMATICA.md deploy_temp\ >nul
+copy RELEASE_NOTES_v2.2.0.md deploy_temp\ >nul
+copy RELEASE_NOTES_v2.1.1.md deploy_temp\ >nul
+
+echo [OK] Script e documentazione copiati
+
+echo.
+echo [6/6] Creazione directory necessarie...
+mkdir deploy_temp\temp >nul 2>&1
+mkdir deploy_temp\Images >nul 2>&1
+
+REM Copia immagini slideshow (solo X* e S*)
+if exist "Images" (
+    for %%F in (Images\x*.* Images\X*.* Images\s*.* Images\S*.*) do (
+        copy "%%F" deploy_temp\Images\ >nul 2>&1
+    )
+    echo [OK] Immagini slideshow copiate
+) else (
+    echo [INFO] Directory Images non trovata
+)
+
+echo.
+echo [7/7] Creazione archivio ZIP...
+REM Usa PowerShell per creare ZIP
+powershell -Command "Compress-Archive -Path 'deploy_temp\*' -DestinationPath '%PACKAGE_NAME%' -Force"
+
+if exist "%PACKAGE_NAME%" (
+    echo [OK] Pacchetto creato: %PACKAGE_NAME%
+    
+    REM Mostra dimensione
+    for %%A in ("%PACKAGE_NAME%") do (
+        set size=%%~zA
+        set /a sizeMB=!size! / 1048576
+    )
+    
     echo.
     echo ========================================
     echo   PACCHETTO CREATO CON SUCCESSO!
     echo ========================================
     echo.
-    echo File: %PACKAGE_NAME%.zip
-    for %%A in (%PACKAGE_NAME%.zip) do (
-        set size=%%~zA
-        set /a sizeMB=%%~zA/1024/1024
-    )
-    for %%A in (%PACKAGE_NAME%.zip) do echo Dimensione: %%~zA bytes
+    echo File: %PACKAGE_NAME%
     echo.
-    echo Contenuto pacchetto:
+    echo Contenuto del pacchetto:
+    echo - Applicazione Python completa
+    echo - Templates HTML e CSS
+    echo - Script di installazione
+    echo - Documentazione completa
+    echo - Immagini slideshow (X* e S*)
+    echo - Font e loghi
     echo.
-    dir deploy_temp /b
-    echo.
-    echo File totali:
-    dir deploy_temp /s /b | find /c /v ""
+    echo PROSSIMI PASSI:
+    echo 1. Trasferire il file ZIP sulla macchina target
+    echo 2. Estrarre il contenuto
+    echo 3. Eseguire INSTALLA.bat come Amministratore
+    echo 4. Configurare database e email con setup.py
+    echo 5. Avviare con START_APP.bat
     echo.
     echo ========================================
-    echo   VERIFICA FILE CRITICI
-    echo ========================================
-    echo.
-    if exist deploy_temp\requirements.txt (
-        echo [OK] requirements.txt presente
-    ) else (
-        echo [!!] requirements.txt MANCANTE
-    )
-    if exist deploy_temp\app.py (
-        echo [OK] app.py presente
-    ) else (
-        echo [!!] app.py MANCANTE
-    )
-    if exist deploy_temp\logo.png (
-        echo [OK] logo.png presente
-    ) else (
-        echo [!!] logo.png MANCANTE
-    )
-    if exist deploy_temp\templates (
-        echo [OK] templates\ presente
-    ) else (
-        echo [!!] templates\ MANCANTE
-    )
-    if exist deploy_temp\static (
-        echo [OK] static\ presente
-    ) else (
-        echo [!!] static\ MANCANTE
-    )
-    echo.
-    echo Pacchetto pronto per deployment!
-    echo.
 ) else (
-    echo.
-    echo ========================================
-    echo   ERRORE CREAZIONE PACCHETTO
-    echo ========================================
-    echo.
-    echo Impossibile creare il file ZIP.
-    echo Verifica che PowerShell sia disponibile.
-    echo.
+    echo [ERRORE] Impossibile creare pacchetto ZIP
+    pause
+    exit /b 1
 )
 
 REM Pulizia
+echo.
 echo Pulizia file temporanei...
 rmdir /s /q deploy_temp
+echo [OK] Pulizia completata
 
 echo.
-echo ========================================
-echo   COMPLETATO
-echo ========================================
-echo.
-echo Premi un tasto per aprire la cartella...
-pause >nul
-explorer .
+pause
