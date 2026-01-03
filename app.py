@@ -610,6 +610,10 @@ def submit_absence_request():
         
         logger.info(f"Registro creato: {registro_id}")
         
+        # Recupera nome tipo richiesta (prima di usarlo)
+        request_types = request_manager.get_request_types()
+        request_type_name = next((rt['name'] for rt in request_types if rt['id'] == request_type_id), 'Sconosciuto')
+        
         # Salva richiesta assenza
         logger.info("Salvataggio richiesta assenza...")
         absence_request_id = request_manager.save_absence_request(
@@ -628,10 +632,6 @@ def submit_absence_request():
         
         if not registry_info:
             return jsonify({'success': False, 'error': 'Errore recupero info registro'}), 500
-        
-        # Recupera nome tipo richiesta
-        request_types = request_manager.get_request_types()
-        request_type_name = next((rt['name'] for rt in request_types if rt['id'] == request_type_id), 'Sconosciuto')
         
         # Genera PDF conferma
         logger.info("Generazione PDF conferma...")

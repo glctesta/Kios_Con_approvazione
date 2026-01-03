@@ -1,298 +1,226 @@
-# 🏢 Sistema Kiosk HR - Adeverențe și Cereri Absență
-## Sistema di Gestione Certificati e Richieste Assenza
+# Kiosk HR - Sistema Adeverințe
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/glctesta/kiosk-hr-adeverente)
-[![Python](https://img.shields.io/badge/python-3.11-green.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/flask-3.0-lightgrey.svg)](https://flask.palletsprojects.com/)
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)]()
-
-Sistema web completo per la gestione automatizzata di certificati HR e richieste di assenza, progettato per ambienti kiosk aziendali.
-
----
+Sistema web per la generazione automatica di certificati e gestione richieste di assenza per dipendenti.
 
 ## 📋 Caratteristiche Principali
 
-### 🎫 Generazione Certificati
-- ✅ Generazione automatica certificati/adeverințe
-- 📄 PDF professionale con firma digitale
-- 🖨️ Stampa automatica su stampante configurata
-- 📧 Invio email automatico HR
-- 🏷️ Numerazione progressiva automatica
+- **Generazione Certificati**: Creazione automatica di certificati/adeverințe con firma digitale
+- **Richieste Assenza**: Sistema completo per richieste ferie, permessi, malattia
+- **Report Storico**: Generazione report annuali delle assenze
+- **Lettore RFID**: Integrazione con lettore badge per identificazione rapida
+- **Stampa Automatica**: Invio automatico documenti alla stampante configurata
+- **Notifiche Email**: Notifiche automatiche ai manager per approvazioni
+- **Multilingua**: Supporto IT/RO/EN
 
-### 📅 Gestione Richieste Assenza
-- ✅ Creazione richieste ferie/permessi
-- 📊 Calcolo automatico giorni lavorativi
-- 🔍 Verifica disponibilità ferie
-- 📧 Notifiche automatiche ai manager
-- ⏰ **Rilevamento richieste scadute** (v2.1.0)
-- 🔄 **Reinvio notifiche** (v2.1.0)
-
-### 📊 Report Storico Assenze
-- 📈 Report dettagliato ferie/malattie/permessi
-- 📅 Calcolo automatico con bonus anzianità
-- 📄 PDF professionale con grafici
-- 🖨️ Stampa automatica
-
-### 🔐 Sicurezza
-- 🎫 Autenticazione tramite badge RFID
-- 🔒 Credenziali database crittografate
-- 🔑 Gestione sicura chiavi di cifratura
-- 📝 Logging completo operazioni
-
----
-
-## 🚀 Novità Versione 2.1.0
-
-### Gestione Intelligente Richieste Assenza
-
-#### 🎯 Stati Richiesta
-Il sistema ora distingue automaticamente:
-- ✅ **Approvate** - Autorizzate dal manager
-- ❌ **Respinte** - Rifiutate esplicitamente
-- ⏰ **Scadute** - Non autorizzate in tempo
-- ⏳ **In Attesa** - Ancora valide per approvazione
-
-#### 📧 Reinvio Notifiche
-- Pulsante "Retrimite Notificare" per richieste pending
-- Anti-spam con disabilitazione temporanea (10s)
-- Email fallback automatica se manager non trovati
-
-#### 🎨 UI Migliorata
-- Colori distintivi per ogni stato
-- Icone intuitive (✅/❌/⏰/⏳)
-- Feedback visivo immediato
-- Header compatto ottimizzato
-
----
-
-## 🛠️ Tecnologie Utilizzate
-
-### Backend
-- **Python 3.11** - Linguaggio principale
-- **Flask 3.0** - Web framework
-- **pyodbc** - Connessione SQL Server
-- **ReportLab** - Generazione PDF
-- **cryptography** - Cifratura credenziali
-
-### Frontend
-- **HTML5** - Struttura
-- **CSS3** - Styling moderno
-- **JavaScript ES6** - Logica client-side
-- **Fetch API** - Comunicazione asincrona
-
-### Database
-- **SQL Server** - Database aziendale
-- **Stored Procedures** - Logica business
-- **Views** - Aggregazione dati
-
----
-
-## 📦 Installazione
+## 🚀 Installazione Rapida
 
 ### Prerequisiti
-- Windows 10/11
-- Python 3.11
-- SQL Server (accesso al database aziendale)
-- Stampante configurata (opzionale)
-- Lettore RFID (opzionale)
 
-### Setup Rapido
+- **Windows 10/11**
+- **Python 3.11** ([Download](https://www.python.org/downloads/))
+- **SQL Server** (accesso al database Employee)
+- **Stampante** configurata (opzionale)
+- **Lettore RFID** (opzionale)
 
-```batch
-# 1. Clona repository
-git clone https://github.com/glctesta/kiosk-hr-adeverente.git
-cd kiosk-hr-adeverente
+### Installazione
 
-# 2. Crea ambiente virtuale
-python -m venv venv
-venv\Scripts\activate
+1. **Clona o scarica il repository**
+   ```bash
+   git clone https://github.com/glctesta/kiosk-hr-adeverente.git
+   cd kiosk-hr-adeverente
+   ```
 
-# 3. Installa dipendenze
-pip install -r requirements.txt
+2. **Esegui lo script di installazione** (come Amministratore)
+   ```bash
+   INSTALLA.bat
+   ```
 
-# 4. Configura database
-python setup.py
+3. **Configura la connessione al database**
+   ```bash
+   python setup.py
+   ```
+   Inserisci i parametri di connessione SQL Server quando richiesto.
 
-# 5. Avvia applicazione
-START_APP.bat
+4. **Avvia l'applicazione**
+   ```bash
+   START_APP.bat
+   ```
+
+5. **Accedi all'interfaccia web**
+   - Locale: `http://localhost:5000`
+   - Rete: `http://<IP-MACCHINA>:5000`
+
+## 📁 Struttura Progetto
+
 ```
+kiosk-hr-adeverente/
+├── app.py                      # Applicazione Flask principale
+├── absence_report.py           # Generazione report assenze
+├── absence_request.py          # Gestione richieste assenza
+├── certificate_generator.py    # Generazione certificati
+├── badge_reader.py             # Lettore badge RFID
+├── digital_signature.py        # Firma digitale PDF
+├── pdf_printer.py              # Gestione stampa PDF
+├── printer_keepalive.py        # Servizio keep-alive stampante
+├── email_connector.py          # Invio email notifiche
+├── db_connection.py            # Connessione database
+├── config_manager.py           # Gestione configurazioni
+├── utils.py                    # Utility varie
+├── setup.py                    # Script configurazione iniziale
+├── requirements.txt            # Dipendenze Python
+├── templates/                  # Template HTML
+│   ├── launcher.html          # Menu principale
+│   ├── certificati.html       # Generazione certificati
+│   ├── absente.html           # Report assenze
+│   ├── cerere.html            # Richiesta assenza
+│   └── verifica.html          # Verifica stato richiesta
+├── static/                     # Risorse statiche
+│   ├── css/
+│   ├── js/
+│   └── images/
+├── temp/                       # PDF temporanei
+├── Images/                     # Immagini firme
+├── INSTALLA.bat               # Script installazione
+├── START_APP.bat              # Avvio applicazione
+└── START_SISTEMA_KIOSK.bat    # Avvio modalità kiosk
 
-### Configurazione Kiosk Fullscreen
-
-```batch
-# Avvia in modalità kiosk fullscreen
-START_KIOSK_FULLSCREEN.bat
 ```
-
----
-
-## 📖 Documentazione
-
-### Guide Disponibili
-- 📘 [**GUIDA_RAPIDA.md**](GUIDA_RAPIDA.md) - Guida utente completa
-- 🚀 [**DEPLOYMENT_v2.1.0.md**](DEPLOYMENT_v2.1.0.md) - Istruzioni deployment
-- 📋 [**RELEASE_NOTES_v2.1.0.md**](RELEASE_NOTES_v2.1.0.md) - Note di rilascio
-- 🔧 [**GUIDA_DEPLOYMENT.md**](GUIDA_DEPLOYMENT.md) - Deployment avanzato
-- 🖨️ [**STAMPA_AUTOMATICA.md**](STAMPA_AUTOMATICA.md) - Configurazione stampa
-- 🎫 [**GUIDA_RFID.md**](GUIDA_RFID.md) - Setup lettore RFID
-- 🌐 [**CONFIGURAZIONE_RETE.md**](CONFIGURAZIONE_RETE.md) - Accesso da rete
-
----
-
-## 🎯 Utilizzo
-
-### 1. Generazione Certificato
-```
-1. Avvicinare badge RFID al lettore
-2. Selezionare motivo certificato
-3. Confermare generazione
-4. PDF generato e stampato automaticamente
-```
-
-### 2. Richiesta Assenza
-```
-1. Avvicinare badge RFID
-2. Selezionare tipo assenza (ferie/permesso)
-3. Scegliere periodo
-4. Confermare richiesta
-5. Email inviata ai manager automaticamente
-```
-
-### 3. Verifica Stato Richiesta
-```
-1. Inserire numero richiesta (es: 2ARQ-2025)
-2. Visualizzare stato corrente
-3. Se pending: reinviare notifica ai manager
-```
-
-### 4. Report Storico
-```
-1. Avvicinare badge RFID
-2. Selezionare anno
-3. Generare report
-4. PDF con dettaglio ferie/malattie/permessi
-```
-
----
 
 ## 🔧 Configurazione
 
 ### Database
-Credenziali crittografate in:
-- `db_config.enc` - Configurazione database
-- `encryption_key.key` - Chiave cifratura
 
-### Email
-Configurazione SMTP in:
-- `email_credentials.enc` - Credenziali email
-- `email_key.key` - Chiave cifratura email
+Il sistema richiede accesso a SQL Server con i seguenti database:
+- `Employee` - Dati dipendenti e richieste
+- `Timeclocking` - Gestione presenze e assenze
 
-### Stampa
-Configurazione stampante in:
-- `print_config.json` - Impostazioni stampa
+### File di Configurazione
 
----
+- **db_config.enc**: Credenziali database (crittografate)
+- **email_credentials.enc**: Credenziali email (crittografate)
+- **encryption_key.key**: Chiave crittografia database
+- **email_key.key**: Chiave crittografia email
+- **print_config.json**: Configurazione stampante
 
-## 📊 Architettura
+### Configurazione Iniziale
 
-```
-┌─────────────────────────────────────────┐
-│         Frontend (Browser)              │
-│  HTML5 + CSS3 + JavaScript ES6          │
-└──────────────┬──────────────────────────┘
-               │ HTTP/JSON
-┌──────────────▼──────────────────────────┐
-│         Backend (Flask)                 │
-│  - app.py (Routes)                      │
-│  - certificate_generator.py             │
-│  - absence_request.py                   │
-│  - absence_report.py                    │
-└──────────────┬──────────────────────────┘
-               │ pyodbc
-┌──────────────▼──────────────────────────┐
-│      SQL Server Database                │
-│  - Employee.dbo.*                       │
-│  - Timeclocking.dbo.*                   │
-└─────────────────────────────────────────┘
-```
+Eseguire `python setup.py` per configurare:
+1. Connessione database SQL Server
+2. Credenziali email SMTP
+3. Stampante predefinita
 
----
+## 📖 Guide Dettagliate
 
-## 🐛 Troubleshooting
+- **[INSTALLAZIONE_MANUALE.md](INSTALLAZIONE_MANUALE.md)** - Installazione passo-passo
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment in produzione
+- **[GUIDA_RAPIDA.md](GUIDA_RAPIDA.md)** - Guida utente rapida
+- **[GUIDA_RFID.md](GUIDA_RFID.md)** - Configurazione lettore RFID
+- **[GUIDA_KIOSK_FULLSCREEN.md](GUIDA_KIOSK_FULLSCREEN.md)** - Modalità kiosk
+- **[CONFIGURAZIONE_RETE.md](CONFIGURAZIONE_RETE.md)** - Accesso da rete
+- **[STAMPA_AUTOMATICA.md](STAMPA_AUTOMATICA.md)** - Configurazione stampa
 
-### Problema: Servizio non si avvia
-```batch
-# Verifica log
-type app_debug.log
+## 🎯 Utilizzo
 
-# Verifica dipendenze
-pip list
-```
+### 1. Generazione Certificati
 
-### Problema: Errore database
-```batch
-# Verifica connessione
-python -c "from db_connection import DatabaseConnection; print(DatabaseConnection().connect())"
-```
+1. Scansiona badge RFID o inserisci numero badge
+2. Seleziona motivo certificato
+3. Clicca "Genera Certificato"
+4. Il PDF viene generato e stampato automaticamente
 
-### Problema: Stampa non funziona
-```batch
-# Verifica stampante
-python pdf_printer.py
-```
+### 2. Richiesta Assenza
 
----
+1. Scansiona badge RFID
+2. Seleziona tipo assenza (Ferie, Permesso, Malattia, ecc.)
+3. Seleziona date inizio/fine
+4. Il sistema calcola automaticamente i giorni lavorativi
+5. Invia richiesta - viene notificato il manager via email
+
+### 3. Verifica Stato Richiesta
+
+1. Inserisci numero richiesta (es. ABS/001/2026)
+2. Visualizza stato: In Attesa / Approvata / Respinta / Scaduta
+3. Possibilità di reinviare notifica se in attesa
+
+### 4. Report Storico Assenze
+
+1. Scansiona badge RFID
+2. Seleziona anno
+3. Genera report PDF con tutte le assenze dell'anno
+
+## 🔐 Sicurezza
+
+- **Crittografia**: Tutte le credenziali sono crittografate con Fernet
+- **Firma Digitale**: I certificati possono essere firmati digitalmente
+- **Logging**: Tutte le operazioni sono registrate nel database
+- **Validazione**: Controlli di validità su badge, date, disponibilità ferie
+
+## 🖨️ Stampa Automatica
+
+Il sistema supporta la stampa automatica silenziosa su:
+- Stampanti di rete
+- Stampanti locali
+- Stampanti PDF virtuali
+
+Configurazione in `print_config.json`
+
+## 📧 Notifiche Email
+
+Le richieste di assenza inviano automaticamente email ai manager con:
+- Dettagli richiesta
+- Nome dipendente
+- Periodo richiesto
+- Giorni lavorativi
+- Link per approvazione (se configurato)
+
+## 🔄 Aggiornamenti
+
+### Versione 2.1.1 (2026-01-03)
+- ✅ Fix errore `UnboundLocalError` in submit_absence_request
+- ✅ Pulizia file inutili
+- ✅ Script installazione migliorato
+
+### Versione 2.1.0 (2025-12-31)
+- ✅ Sistema richieste assenza completo
+- ✅ Verifica stato richieste
+- ✅ Reinvio notifiche manager
+- ✅ Logging operazioni servizio
+- ✅ Disclaimer Romanian su report
+- ✅ Branding GTMC
+
+## 🆘 Troubleshooting
+
+### L'applicazione non si avvia
+- Verificare che Python 3.11 sia installato
+- Verificare che l'ambiente virtuale sia attivato
+- Controllare i log in `app_debug.log`
+
+### Errore connessione database
+- Verificare credenziali in `db_config.enc`
+- Testare connessione con `python setup.py`
+- Verificare firewall SQL Server
+
+### Stampa non funziona
+- Verificare stampante predefinita in Windows
+- Controllare `print_config.json`
+- Verificare driver stampante
+
+### Lettore RFID non funziona
+- Verificare presenza `IDReader.dll`
+- Consultare `GUIDA_RFID.md`
+- Verificare driver lettore
 
 ## 📞 Supporto
 
-**Contatto:** gianluca.testa@vandewiele.com
-
-**Informazioni da fornire:**
-- Versione sistema (vedi `app.py`)
-- Log applicazione (`app_debug.log`)
-- Screenshot errore
-- Passi per riprodurre
-
----
-
-## 📅 Roadmap
-
-### v2.2.0 (Q1 2026)
-- [ ] Dashboard manager per approvazioni
-- [ ] Notifiche push browser
-- [ ] API REST documentata
-- [ ] Autenticazione multi-fattore
-
-### v2.3.0 (Q2 2026)
-- [ ] App mobile companion
-- [ ] Integrazione calendario Outlook
-- [ ] Report analytics avanzati
-- [ ] Supporto multi-lingua
-
----
+Per problemi o domande:
+- **Email**: gianluca.testa@vandewiele.com
+- **GitHub Issues**: [Apri una issue](https://github.com/glctesta/kiosk-hr-adeverente/issues)
 
 ## 📄 Licenza
 
-Proprietario - Vandewiele Romania  
-© 2025 Tutti i diritti riservati
+Proprietario: Vandewiele Romania  
+Sviluppato da: GTMC (Gianluca Testa)
 
 ---
 
-## 👥 Autori
-
-**Gianluca Testa**  
-IT Manager - Vandewiele Romania  
-📧 gianluca.testa@vandewiele.com
-
----
-
-## 🙏 Ringraziamenti
-
-- Team HR Vandewiele Romania
-- Utenti beta tester
-- Comunità Flask e Python
-
----
-
-**Versione:** 2.1.0  
-**Ultimo Aggiornamento:** 30 Dicembre 2025
+**© 2026 GTMC - Vandewiele Romania**
