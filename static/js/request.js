@@ -599,15 +599,29 @@ function showToast(message, type = 'info') {
     messageSpan.className = 'toast-message';
     messageSpan.textContent = message;
 
+    // Per messaggi lunghi, permetti al testo di andare su più righe
+    if (message.length > 100) {
+        messageSpan.style.whiteSpace = 'pre-wrap';
+        messageSpan.style.maxWidth = '500px';
+        messageSpan.style.lineHeight = '1.5';
+        toast.style.maxWidth = '600px';
+    }
+
     toast.appendChild(icon);
     toast.appendChild(messageSpan);
 
     elements.toastContainer.appendChild(toast);
+
+    // Timeout più lungo per messaggi di errore lunghi
+    let timeout = 4000; // 4 secondi di default
+    if (type === 'error' && message.length > 100) {
+        timeout = 10000; // 10 secondi per errori lunghi
+    }
 
     setTimeout(() => {
         toast.style.animation = 'slideOutRight 0.3s ease-out';
         setTimeout(() => {
             toast.remove();
         }, 300);
-    }, 5000);
+    }, timeout);
 }

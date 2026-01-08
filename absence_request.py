@@ -364,6 +364,95 @@ class AbsenceRequestManager:
             # In caso di errore, permettiamo la richiesta (fail-safe)
             return False
     
+    def validate_absence_date_rule(self, request_type_id, date_start):
+        """
+        Verifica se la data di inizio assenza rispetta le regole DayNoZone.
+        
+        Returns:
+            dict: {
+                'valid': bool,
+                'message': str (messaggio errore in rumeno se non valido),
+                'day_no_zone': int (numero di giorni di preavviso richiesti)
+            }
+        """
+        try:
+            cursor = self.conn.cursor()
+            
+            # Verifica se esiste una regola DayNoZone per questo tipo di richiesta
+            query = """
+            SELECT [DayNoZone]
+            FROM [Employee].[dbo].[AbsenceRules]
+            WHERE [IDRequestType] = ?
+                AND [DayNoZone] IS NOT NULL
+                AND [DateOut] IS NULL
+            """
+            
+            cursor.execute(query, (request_type_id,))
+            row = cursor.fetchone()
+            
+            # Se non c'è regola, la validazione passa
+            if not row or row[0] is None:
+                return {
+                    'valid': True,
+                    'message': '',
+                    'day_no_zone': 0
+                }
+            
+            day_no_zone = int(row[0])
+            
+            # Calcola la data minima consentita (oggi + DayNoZone giorni)
+            today = datetime.now().date()
+            min_allowed_date = today + timedelta(days=day_no_zone)
+            
+            # Converti date_start in date se è datetime
+            if isinstance(date_start, datetime):
+                date_start_check = date_start.date()
+            else:
+                date_start_check = date_start
+            
+            # Verifica se la data di inizio è valida
+            if date_start_check < min_allowed_date:
+                # Formatta la data massima per la richiesta in formato rumeno
+                max_request_date_str = min_allowed_date.strftime('%d.%m.%Y')
+                
+                # Messaggio in rumeno
+                message = (
+                    f"ATENȚIE: Cererea nu poate fi înregistrată!\n\n"
+                    f"Data maximă pentru înregistrarea acestei cereri este {max_request_date_str}.\n\n"
+                    f"Conform regulilor companiei, această cerere trebuie înregistrată "
+                    f"cu cel puțin {day_no_zone} zile înainte.\n\n"
+                    f"Pentru cazuri speciale, vă rugăm să contactați responsabilul dumneavoastră direct."
+                )
+                
+                logger.warning(
+                    f"Validazione fallita: data {date_start_check} < data minima {min_allowed_date} "
+                    f"(DayNoZone={day_no_zone})"
+                )
+                
+                return {
+                    'valid': False,
+                    'message': message,
+                    'day_no_zone': day_no_zone
+                }
+            
+            # Validazione superata
+            return {
+                'valid': True,
+                'message': '',
+                'day_no_zone': day_no_zone
+            }
+            
+        except Exception as e:
+            logger.error(f"Errore validazione regole data: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # In caso di errore, permettiamo la richiesta (fail-safe)
+            return {
+                'valid': True,
+                'message': '',
+                'day_no_zone': 0
+            }
+    
     def create_registry_entry(self, year, request_date, issued_by, employeer_id=2):
         """Crea entry nel registro tramite stored procedure"""
         try:

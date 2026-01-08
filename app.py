@@ -735,6 +735,17 @@ def submit_absence_request():
                 'error': 'Există deja o cerere identică pentru această perioadă. Vă rugăm să verificați cererile anterioare.'
             }), 400
         
+        # Verifica regole DayNoZone (preavviso minimo richiesto)
+        logger.info("Verifica regole DayNoZone...")
+        validation_result = request_manager.validate_absence_date_rule(request_type_id, date_start)
+        
+        if not validation_result['valid']:
+            logger.warning(f"Validazione DayNoZone fallita: {validation_result['message']}")
+            return jsonify({
+                'success': False,
+                'error': validation_result['message']
+            }), 400
+        
         # Crea entry nel registro
         logger.info("Creazione entry registro...")
         registro_id = request_manager.create_registry_entry(year, request_date, employee_name)
