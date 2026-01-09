@@ -71,6 +71,7 @@ def create_deployment_package():
         # Script batch
         'START_APP.bat',
         'INSTALLA.bat',
+        'INSTALLA_RAPIDA.bat',  # NUOVO! - Per installazioni problematiche
         'AGGIORNA_FIRMA.bat',
         
         # Documentazione
@@ -85,6 +86,7 @@ def create_deployment_package():
         'CONFIGURAZIONE_RETE.md',
         'STAMPA_AUTOMATICA.md',
         'RIEPILOGO_INTERVENTO_2026-01-09.md',
+        'RISOLUZIONE_PROBLEMI_INSTALLAZIONE.md',  # NUOVO! - Troubleshooting installazione
     ]
     
     include_dirs = [

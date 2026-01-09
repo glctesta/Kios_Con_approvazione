@@ -66,18 +66,30 @@ echo [OK] Ambiente virtuale attivato
 
 echo.
 echo [4/8] Aggiornamento pip...
-python -m pip install --upgrade pip --quiet
-echo [OK] pip aggiornato
+echo [INFO] Questo potrebbe richiedere 30-60 secondi...
+REM Usa --no-cache-dir per evitare problemi e mostra output per monitorare
+python -m pip install --upgrade pip --no-cache-dir 2>nul
+if %errorLevel% neq 0 (
+    echo [AVVISO] Aggiornamento pip fallito, procedo con versione attuale
+    echo [INFO] Questo non impedisce l'installazione delle dipendenze
+) else (
+    echo [OK] pip aggiornato
+)
 
 echo.
 echo [5/8] Installazione dipendenze Python...
-echo [INFO] Questo potrebbe richiedere alcuni minuti...
-pip install -r requirements.txt --quiet
+echo [INFO] Questo potrebbe richiedere alcuni minuti, attendere...
+echo [INFO] Verranno installati: Flask, Pillow, reportlab, pyodbc, ecc.
+echo.
+pip install -r requirements.txt
 if %errorLevel% neq 0 (
+    echo.
     echo [ERRORE] Installazione dipendenze fallita
+    echo [INFO] Verificare la connessione internet e riprovare
     pause
     exit /b 1
 )
+echo.
 echo [OK] Dipendenze installate
 
 echo.
