@@ -331,6 +331,7 @@ async function generateCertificate() {
 
         const payload = {
             employeeId: state.selectedEmployee.id,
+            badgeNumber: state.selectedEmployee.badgeNumber || elements.badgeInput.value.trim(),
             reason: state.selectedReason.reason,
             typedReason: elements.customReason.value.trim(),
             groupId: state.selectedReason.groupId

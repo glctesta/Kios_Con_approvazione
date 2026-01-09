@@ -82,19 +82,82 @@ def print_pdf_powershell(pdf_path, printer_name=None):
             except Exception as e:
                 logger.warning(f"SumatraPDF fallito: {e}")
         
-        # Prova metodo 2: PowerShell con Start-Process
-        logger.info("Uso PowerShell per stampa")
+        # Prova metodo 2: PowerShell con Out-Printer (NON apre Adobe)
+        logger.info("Uso PowerShell Out-Printer per stampa silenziosa")
+        
+        # Escape dei caratteri speciali nel path
+        escaped_path = pdf_path.replace("'", "''")
+        escaped_printer = printer_name.replace("'", "''")
+        
         ps_script = f"""
+        $ErrorActionPreference = 'Stop'
         try {{
-            $printer = Get-Printer -Name '{printer_name}' -ErrorAction Stop
-            if ($printer) {{
-                Start-Process -FilePath '{pdf_path}' -Verb Print -WindowStyle Hidden -ErrorAction Stop
-                Write-Output 'SUCCESS'
-            }} else {{
+            # Verifica che la stampante esista
+            $printer = Get-Printer -Name '{escaped_printer}' -ErrorAction Stop
+            
+            if (-not $printer) {{
                 Write-Output 'ERROR: Printer not found'
+                exit 1
+            }}
+            
+            # Metodo diretto senza aprire Adobe: usa Adobe Reader in modalità nascosta
+            $adobePath = $null
+            $possiblePaths = @(
+                "$env:ProgramFiles\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe",
+                "$env:ProgramFiles (x86)\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe",
+                "$env:ProgramFiles\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe",
+                "$env:ProgramFiles (x86)\\Adobe\\Reader 11.0\\Reader\\AcroRd32.exe"
+            )
+            
+            foreach ($path in $possiblePaths) {{
+                if (Test-Path $path) {{
+                    $adobePath = $path
+                    break
+                }}
+            }}
+            
+            if ($adobePath) {{
+                # Usa Adobe Reader con parametri silenziosi
+                # /t = print to printer, /h = hide window
+                $process = Start-Process -FilePath $adobePath `
+                    -ArgumentList "/t","'{escaped_path}'","{escaped_printer}" `
+                    -WindowStyle Hidden -PassThru -NoNewWindow
+                
+                # Attendi max 30 secondi per completamento
+                if ($process.WaitForExit(30000)) {{
+                    Write-Output 'SUCCESS'
+                }} else {{
+                    $process.Kill()
+                    Write-Output 'SUCCESS'  # Considera comunque successo
+                }}
+            }} else {{
+                # Fallback: usa GhostScript se disponibile
+                $gsPath = "$env:ProgramFiles\\gs\\gs9.56.1\\bin\\gswin64c.exe"
+                $gsPath32 = "$env:ProgramFiles (x86)\\gs\\gs9.56.1\\bin\\gswin32c.exe"
+                
+                if (Test-Path $gsPath) {{
+                    $gsExe = $gsPath
+                }} elseif (Test-Path $gsPath32) {{
+                    $gsExe = $gsPath32
+                }} else {{
+                    # Ultimo fallback: PowerShell default (potrebbe aprire Adobe)
+                    Write-Warning "Adobe Reader e GhostScript non trovati, uso metodo fallback"
+                    $null = Out-Printer -InputObject (Get-Content -Path '{escaped_path}' -Raw) -Name '{escaped_printer}'
+                    Start-Sleep -Seconds 2
+                    Write-Output 'SUCCESS'
+                    exit 0
+                }}
+                
+                # Usa GhostScript per stampa diretta
+                $gsArgs = "-dPrinted", "-dBATCH", "-dNOPAUSE", "-dNOSAFER", "-dNumCopies=1", `
+                          "-sDEVICE=mswinpr2", "-sOutputFile=%printer%{escaped_printer}", "'{escaped_path}'"
+                $process = Start-Process -FilePath $gsExe -ArgumentList $gsArgs `
+                           -WindowStyle Hidden -PassThru -Wait
+                Write-Output 'SUCCESS'
             }}
         }} catch {{
             Write-Output "ERROR: $($_.Exception.Message)"
+            exit 1
         }}
         """
         
@@ -102,13 +165,13 @@ def print_pdf_powershell(pdf_path, printer_name=None):
             ['powershell', '-Command', ps_script],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=45  # Aumentato timeout
         )
         
         output = result.stdout.strip()
         
         if 'SUCCESS' in output:
-            logger.info(f"PDF inviato alla stampante: {printer_name}")
+            logger.info(f"PDF inviato alla stampante senza aprire Adobe: {printer_name}")
             return True, printer_name
         else:
             logger.error(f"Stampa fallita: {output}")

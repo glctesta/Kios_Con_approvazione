@@ -12,6 +12,7 @@ from certificate_generator import CertificateGenerator
 from absence_report import AbsenceReportGenerator
 from absence_request import AbsenceRequestManager
 from badge_reader import BadgeReader
+from kiosk_request_logger import KioskRequestLogger
 from utils import send_email, get_email_recipients
 from pdf_printer import print_pdf_silent, get_default_printer
 from printer_keepalive import start_printer_keepalive, stop_printer_keepalive
@@ -33,6 +34,9 @@ app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
 # Inizializza connessione database
 config_manager = ConfigManager()
 db_connection = DatabaseConnection(config_manager)
+
+# Inizializza Kiosk Request Logger per monitoraggio utilizzo
+kiosk_logger = KioskRequestLogger(db_connection)
 
 
 
@@ -366,12 +370,14 @@ def add_reason():
 @app.route('/api/generate-certificate', methods=['POST'])
 def generate_certificate():
     """Genera certificato e lo stampa/invia"""
+    badge_number = None  # Per logging kiosk
     try:
         data = request.json
         employee_id = data.get('employeeId')
         reason = data.get('reason')
         typed_reason = data.get('typedReason', '')
         group_id = data.get('groupId', 0)
+        badge_number = data.get('badgeNumber', '')  # Recupera badge per logging
         
         # Validazione
         if not employee_id or not reason:
@@ -393,6 +399,10 @@ def generate_certificate():
         
         if result['success']:
             pdf_path = result.get('pdf_path')
+            
+            # Log richiesta kiosk
+            if badge_number:
+                kiosk_logger.log_certificate_request(badge_number, reason, executed=True)
             
             # Stampa automatica PDF
             print_success = False
@@ -432,6 +442,10 @@ def generate_certificate():
                 'printerName': printer_name
             })
         else:
+            # Log fallimento
+            if badge_number:
+                kiosk_logger.log_certificate_request(badge_number, reason, executed=False)
+            
             return jsonify({
                 'success': False,
                 'error': result.get('error', 'Errore sconosciuto')
@@ -439,6 +453,11 @@ def generate_certificate():
     
     except Exception as e:
         logger.error(f"Errore nella generazione certificato: {str(e)}")
+        
+        # Log fallimento
+        if badge_number:
+            kiosk_logger.log_certificate_request(badge_number, reason or "Unknown", executed=False)
+        
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -502,10 +521,15 @@ def generate_absence_report():
         logger.info(f"PDF generato: {pdf_path}")
         
         if not pdf_path:
+            # Log fallimento
+            kiosk_logger.log_absence_report_request(badge_number, year, executed=False)
             return jsonify({
                 'success': False,
                 'error': 'Errore generazione report'
             }), 500
+        
+        # Log successo richiesta
+        kiosk_logger.log_absence_report_request(badge_number, year, executed=True)
         
         # Stampa automatica
         printer_name = get_default_printer()
@@ -533,6 +557,9 @@ def generate_absence_report():
         import traceback
         traceback.print_exc()
         logger.error(traceback.format_exc())
+        # Log fallimento
+        if 'badge_number' in locals() and badge_number:
+            kiosk_logger.log_absence_report_request(badge_number, year if 'year' in locals() else datetime.now().year, executed=False)
         return jsonify({
             'success': False,
             'error': str(e)
@@ -890,6 +917,9 @@ def submit_absence_request():
             logger.error(f"Errore invio email notifica: {str(email_error)}")
             import traceback
             logger.error(traceback.format_exc())
+        
+        # Log richiesta kiosk
+        kiosk_logger.log_absence_request_submission(badge_number, request_type_name, executed=True)
         
         return jsonify({
             'success': True,
