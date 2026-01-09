@@ -27,20 +27,46 @@ def create_deployment_package():
         'app.py',
         'config_manager.py',
         'db_connection.py',
+        'utils.py',
+        
+        # Generatori e report
         'certificate_generator.py',
         'absence_report.py',
+        'absence_request.py',
+        
+        # Gestione firma digitale e PDF
+        'digital_signature.py',
         'pdf_printer.py',
+        'pdf_signature_powershell.py',
+        'update_signature.py',
         
-        # Configurazione
-        'config.ini',
-        'requirements.txt',
+        # Connettori e logger
+        'email_connector.py',
+        'kiosk_request_logger.py',
         
-        # Script di utilità e diagnostici (NUOVI!)
+        # Hardware e RFID
+        'badge_reader.py',
+        'rfid_reader.py',
+        'printer_keepalive.py',
+        
+        # Servizi background
+        'service_kiosk_reports.py',
+        
+        # Script di utilità e diagnostici
         'check_news.py',
         'diagnose_news.py',
         'test_api_news.py',
         'insert_test_news.py',
         'test_news.py',
+        'test_kiosk_logger.py',
+        
+        # Setup e deployment
+        'setup.py',
+        'create_deployment_package.py',
+        
+        # Configurazione
+        'config.ini',
+        'requirements.txt',
         
         # Script batch
         'START_APP.bat',
@@ -49,15 +75,16 @@ def create_deployment_package():
         
         # Documentazione
         'README.md',
-        'FIX_NEWS_SISTEMA.md',  # NUOVO!
-        'NEWS_SISTEMA_COMPLETO.md',  # NUOVO!
-        'GUIDA_SQL_NEWS.md',  # NUOVO!
+        'FIX_NEWS_SISTEMA.md',
+        'NEWS_SISTEMA_COMPLETO.md',
+        'GUIDA_SQL_NEWS.md',
         'GUIDA_INSTALLAZIONE.md',
         'GUIDA_NEWS_SLIDESHOW.md',
         'RELEASE_NOTES_v2.2.0.md',
         'QUICK_START_KIOSK_MONITORING.md',
         'CONFIGURAZIONE_RETE.md',
         'STAMPA_AUTOMATICA.md',
+        'RIEPILOGO_INTERVENTO_2026-01-09.md',
     ]
     
     include_dirs = [
