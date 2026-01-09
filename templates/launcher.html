@@ -61,7 +61,7 @@
                 </div>
                 <div id="slideshowLoading" class="loading-display" style="display: none;">
                     <div class="loading-spinner"></div>
-                    <p>Caricamento slideshow...</p>
+                    <p>Se încarcă prezentarea de imagini...</p>
                 </div>
             </div>
 
@@ -82,7 +82,7 @@
                 </div>
                 <div id="newsLoading" class="loading-display">
                     <div class="loading-spinner"></div>
-                    <p>Caricamento news...</p>
+                    <p>Se încarcă știrile...</p>
                 </div>
             </div>
         </div>
@@ -160,11 +160,11 @@
                     slideshowFrame.style.display = 'block';
                     startSlideshow();
                 } else {
-                    slideshowLoading.innerHTML = '<p style="color: #718096;">Nessuna immagine disponibile</p>';
+                    slideshowLoading.innerHTML = '<p style="color: #718096;">Nu sunt imagini disponibile</p>';
                 }
             } catch (error) {
                 console.error('Errore caricamento slideshow:', error);
-                slideshowLoading.innerHTML = '<p style="color: #e53e3e;">Errore caricamento slideshow</p>';
+                slideshowLoading.innerHTML = '<p style="color: #e53e3e;">Eroare la încărcarea prezentării</p>';
             }
         }
 
@@ -189,13 +189,84 @@
                     startNewsRotation();
                 } else {
                     console.log('No news available');
-                    newsLoading.innerHTML = '<p style="color: #718096;">Nessuna comunicazione al momento</p>';
+                    newsLoading.innerHTML = '<p style="color: #718096;">Nu există comunicări în acest moment</p>';
                 }
             } catch (error) {
                 console.error('Errore caricamento news:', error);
-                newsLoading.innerHTML = '<p style="color: #e53e3e;">Errore caricamento news</p>';
+                newsLoading.innerHTML = '<p style="color: #e53e3e;">Eroare la încărcarea știrilor</p>';
             }
+
+            // Auto-refresh news ogni 5 minuti per intercettare modifiche
+            setTimeout(() => refreshNews(), 15 * 60 * 1000);
         }
+
+        async function refreshNews() {
+            try {
+                console.log('Auto-refresh news...');
+                const newsResponse = await fetch('/api/news');
+                const newsResult = await newsResponse.json();
+
+                if (newsResult.success && newsResult.has_news && newsResult.news.length > 0) {
+                    // Verifica se ci sono modifiche
+                    const newsChanged = hasNewsChanged(newsData, newsResult.news);
+
+                    if (newsChanged) {
+                        console.log('News modificate, aggiornamento in corso...');
+
+                        // Stop rotazione corrente
+                        if (newsInterval) {
+                            clearInterval(newsInterval);
+                        }
+
+                        // Aggiorna dati
+                        newsData = newsResult.news;
+                        currentNewsIndex = 0;
+
+                        // Riavvia rotazione
+                        const newsFrame = document.getElementById('newsFrame');
+                        newsFrame.style.display = 'block';
+                        startNewsRotation();
+                    } else {
+                        console.log('Nessuna modifica alle news');
+                    }
+                } else {
+                    // News rimosse o scadute
+                    if (newsData.length > 0) {
+                        console.log('News non più disponibili');
+                        if (newsInterval) {
+                            clearInterval(newsInterval);
+                        }
+                        newsData = [];
+                        const newsFrame = document.getElementById('newsFrame');
+                        const newsLoading = document.getElementById('newsLoading');
+                        newsFrame.style.display = 'none';
+                        newsLoading.style.display = 'flex';
+                        newsLoading.innerHTML = '<p style="color: #718096;">Nu există comunicări în acest moment</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('Errore refresh news:', error);
+            }
+
+            // Schedula prossimo refresh
+            setTimeout(() => refreshNews(), 5 * 60 * 1000);
+        }
+
+        function hasNewsChanged(oldNews, newNews) {
+            if (oldNews.length !== newNews.length) return true;
+
+            // Confronta ID e contenuto
+            for (let i = 0; i < oldNews.length; i++) {
+                if (oldNews[i].id !== newNews[i].id ||
+                    oldNews[i].message !== newNews[i].message ||
+                    oldNews[i].is_mandatory !== newNews[i].is_mandatory) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
 
 
         function startNewsRotation() {
@@ -300,7 +371,7 @@
 
         function showNoContent() {
             const loadingContainer = document.getElementById('loadingContainer');
-            loadingContainer.innerHTML = '<p style="color: #718096;">Nessun contenuto disponibile</p>';
+            loadingContainer.innerHTML = '<p style="color: #718096;">Nu există conținut disponibil</p>';
         }
     </script>
 </body>

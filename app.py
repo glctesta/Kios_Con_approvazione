@@ -97,6 +97,7 @@ def get_news():
         current_date = datetime.now()
         
         # Query per recuperare news attive
+        # Verifica che current_date sia COMPRESO tra StartNews ed EndNews
         query = """
         SELECT 
             NewId,
@@ -107,7 +108,7 @@ def get_news():
             Publisher,
             IsMandatory
         FROM [Employee].[dbo].[News]
-        WHERE StartNews <= ? AND EndNews >= ?
+        WHERE ? >= StartNews AND ? <= EndNews
         ORDER BY IsMandatory DESC, StartNews ASC
         """
         
