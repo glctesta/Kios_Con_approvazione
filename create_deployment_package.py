@@ -38,6 +38,7 @@ def create_deployment_package():
         'digital_signature.py',
         'pdf_printer.py',
         'pdf_signature_powershell.py',
+        'pdf_digital_signer.py',  # NUOVO! - Firma digitale con certificati
         'update_signature.py',
         
         # Connettori e logger
@@ -81,8 +82,10 @@ def create_deployment_package():
         'GUIDA_SQL_NEWS.md',
         'GUIDA_INSTALLAZIONE.md',
         'GUIDA_NEWS_SLIDESHOW.md',
+        'GUIDA_FIRMA_DIGITALE.md',  # NUOVO! - Setup firma digitale
         'RELEASE_NOTES_v2.2.0.md',
         'QUICK_START_KIOSK_MONITORING.md',
+        'QUICK_START_CONFIGURAZIONE.md',  # NUOVO! - Prima config DB
         'CONFIGURAZIONE_RETE.md',
         'STAMPA_AUTOMATICA.md',
         'RIEPILOGO_INTERVENTO_2026-01-09.md',

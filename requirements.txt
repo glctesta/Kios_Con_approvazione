@@ -38,3 +38,7 @@ keyring==24.3.0
 # Immagini (per eventuali manipolazioni future)
 # Versione 10.4.0 garantisce wheel precompilati per Python 3.11 su Windows
 Pillow==10.4.0
+
+# Firma digitale PDF con certificati
+pyHanko==0.21.0
+pyhanko-certvalidator==0.26.3
