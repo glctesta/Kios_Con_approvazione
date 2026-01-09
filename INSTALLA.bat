@@ -114,7 +114,32 @@ if %errorLevel% neq 0 (
 echo.
 echo [5/8] Installazione dipendenze Python...
 echo [INFO] Questo potrebbe richiedere alcuni minuti, attendere...
-echo [INFO] Verranno installati: Flask, Pillow, reportlab, pyodbc, ecc.
+echo.
+
+REM IMPORTANTE: Installa prima Pillow con wheel pre-compilata
+echo [INFO] Fase 1/2: Installazione Pillow 10.4.0 (con wheel pre-compilata)...
+pip install Pillow==10.4.0 --only-binary :all:
+if %errorLevel% neq 0 (
+    echo.
+    echo [ERRORE] Installazione Pillow fallita
+    echo [INFO] Pillow richiede wheel pre-compilata non disponibile
+    echo.
+    echo SOLUZIONE ALTERNATIVA:
+    echo 1. Aprire PowerShell come amministratore
+    echo 2. Attivare venv: .\venv\Scripts\Activate.ps1
+    echo 3. Eseguire: pip install Pillow==10.4.0 --only-binary :all:
+    echo.
+    echo Se persiste, provare versione diversa:
+    echo   pip install Pillow==10.3.0 --only-binary :all:
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] Pillow installato
+
+echo.
+echo [INFO] Fase 2/2: Installazione altre dipendenze...
+echo [INFO] Pacchetti: Flask, reportlab, pyodbc, cryptography, ecc.
 echo.
 pip install -r requirements.txt
 if %errorLevel% neq 0 (

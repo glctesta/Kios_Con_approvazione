@@ -197,7 +197,98 @@ Se entrambi gli script falliscono, installazione passo-passo manuale.
 
 ---
 
+## 🐛 Problema: Pillow Fallisce con "zlib not found"
+
+### Sintomi
+```
+ERROR: Failed building wheel for Pillow
+RequiredDependencyException:
+
+The headers or library files could not be found for zlib,
+a required dependency when compiling Pillow from source.
+```
+
+### Causa
+Pip sta cercando di **compilare Pillow da source** invece di usare una **wheel pre-compilata**. Succede quando:
+- pip è troppo vecchio e non riconosce le wheel disponibili
+- La versione di Pillow richiesta non ha wheel per Python 3.11/Windows
+- pip ignora il `requirements.txt` e cerca l'ultima versione
+
+### ✅ Soluzione 1: Usa Script Aggiornati (Fix Automatica)
+
+Gli script `INSTALLA.bat` e `INSTALLA_RAPIDA.bat` aggiornati (2026-01-09):
+- ✅ Installano **prima** Pillow 10.4.0 separatamente  
+- ✅ Usano flag `--only-binary :all:` per **forzare** uso di wheel
+- ✅ Falliscono immediatamente se wheel non disponibile (invece di provare a compilare)
+
+**Passi:**
+1. Scaricare l'ultima versione del package ZIP
+2. Eseguire `INSTALLA_RAPIDA.bat` come amministratore
+3. Lo script installerà Pillow separatamente prima delle altre dipendenze
+
+---
+
+### ✅ Soluzione 2: Installazione Manuale Pillow
+
+Se gli script aggiornati non sono disponibili:
+
+```powershell
+# Attiva virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Installa Pillow con wheel obbligatoria
+pip install Pillow==10.4.0 --only-binary :all:
+
+# Se fallisce, prova versione precedente
+pip install Pillow==10.3.0 --only-binary :all:
+
+# Poi installa le altre dipendenze
+pip install -r requirements.txt
+```
+
+**Versioni Pillow testate con wheel per Python 3.11:**
+- ✅ Pillow 10.4.0 (consigliata)
+- ✅ Pillow 10.3.0
+- ✅ Pillow 10.2.0
+- ❌ Pillow 11.x (potrebbe non avere wheel)
+
+---
+
+### ✅ Soluzione 3: Aggiorna pip Prima
+
+A volte pip vecchio non riconosce le wheel disponibili:
+
+```powershell
+# Aggiorna pip
+python -m pip install --upgrade pip
+
+# Verifica versione (deve essere >= 23.0)
+pip --version
+
+# Poi riprova installazione
+pip install Pillow==10.4.0 --only-binary :all:
+pip install -r requirements.txt
+```
+
+---
+
+### ❌ NON Funziona: Lasciare pip Compilare
+
+**NON fare:**
+```
+❌ pip install Pillow  (senza --only-binary)
+❌ Installare Visual Studio Build Tools per compilare
+```
+
+**Perché:**
+- Richiede 4+ GB di download (Visual Studio)
+- Configurazione complessa
+-  Wheel pre-compilate sono già disponibili!
+
+---
+
 ## 🔧 Debug Avanzato
+
 
 ### Verifica Connessione a PyPI
 
