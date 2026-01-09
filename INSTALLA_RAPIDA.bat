@@ -6,8 +6,9 @@ REM Versione: 2.2.0
 REM Usare questo se INSTALLA.bat si blocca
 REM ========================================
 
-REM Imposta la directory corrente a quella dello script
-cd /d "%~dp0"
+REM IMPORTANTE: Imposta la directory corrente a quella dello script
+REM Usa pushd per gestire correttamente UAC e admin rights
+pushd "%~dp0"
 
 echo.
 echo ========================================
@@ -18,6 +19,22 @@ echo ========================================
 echo.
 echo Directory installazione: %CD%
 echo.
+
+REM Verifica che NON siamo in System32
+echo %CD% | findstr /I "System32" >nul
+if %errorLevel% equ 0 (
+    echo [ERRORE] Directory non valida! Eseguire dalla cartella del progetto.
+    echo Directory corrente: %CD%
+    pause
+    exit /b 1
+)
+
+REM Verifica che app.py esista
+if not exist "app.py" (
+    echo [ERRORE] File app.py non trovato! Directory corrente: %CD%
+    pause
+    exit /b 1
+)
 
 REM Verifica privilegi amministratore
 net session >nul 2>&1

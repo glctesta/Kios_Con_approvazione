@@ -5,7 +5,91 @@
 
 ---
 
+## 🔴 **Problema CRITICO: Virtual Environment in System32**
+
+### Sintomi
+```
+[2/8] Creazione ambiente virtuale...
+Actual environment location may have moved due to redirects, links or junctions.
+  Requested location: "C:\Windows\System32\venv\Scripts\python.exe"
+  Actual location:    "C:\Windows\SysWOW64\venv\Scripts\python.exe"
+
+[3/8] Attivazione ambiente virtuale...
+The system cannot find the path specified.
+[ERRORE] Impossibile attivare ambiente virtuale
+```
+
+### Causa
+Lo script viene eseguito dalla directory `C:\Windows\System32` invece che dalla cartella del progetto. Questo succede quando:
+- Si esegue il .bat con "Esegui come amministratore" dal menu contestuale
+- Windows UAC (User Account Control) cambia la directory corrente
+
+### ✅ Soluzione 1: Usa Script Aggiornati (CONSIGLIATO)
+
+Gli script `INSTALLA.bat` e `INSTALLA_RAPIDA.bat` sono stati aggiornati (2026-01-09) con:
+- ✅ Rilevamento automatico di System32
+- ✅ Messaggio di errore chiaro se in directory sbagliata
+- ✅ Uso di `pushd` invece di `cd` per gestire UAC
+
+**Passi:**
+1. Scaricare l'ultima versione del package ZIP da GitHub
+2. Estrarre in una cartella (es. `C:\Kiosk_HR`)
+3. Eseguire il .bat da quella cartella
+
+Se hai ancora la versione vecchia, **aggiorna il package ZIP**!
+
+---
+
+### ✅ Soluzione 2: PowerShell come Amministratore dalla Directory Corretta
+
+**Metodo corretto per eseguire come Admin:**
+
+1. Aprire Esplora Risorse
+2. Navigare nella cartella del progetto (quella con `app.py`)
+3. Tenere premuto **SHIFT**
+4. Click destro in uno spazio vuoto della cartella
+5. Selezionare **"Apri finestra PowerShell qui come amministratore"**
+6. Eseguire: `.\INSTALLA.bat` oppure `.\INSTALLA_RAPIDA.bat`
+
+**Perché funziona:**
+- La directory corrente è GIÀ quella giusta
+- UAC non cambia la directory
+- Il venv viene creato nel posto giusto
+
+---
+
+### ✅ Soluzione 3: Copia Temporanea in C:\Temp
+
+Se le altre soluzioni non funzionano:
+
+1. **Copiare** l'intera cartella del progetto in `C:\Temp\Kiosk_HR`
+2. Navigare in `C:\Temp\Kiosk_HR` con Esplora Risorse
+3. Click destro su `INSTALLA_RAPIDA.bat`
+4. "Esegui come amministratore"
+5. Al termine, **copiare** la cartella installata nella posizione definitiva
+
+**Perché funziona:**
+- `C:\Temp` non ha restrizioni UAC particolari
+- Evita problemi di redirect System32
+
+---
+
+### ❌ NON Funziona: Click Destro Diretto
+
+**NON fare:**
+```
+❌ Click destro su INSTALLA.bat → "Esegui come amministratore"
+```
+
+**Perché fallisce:**
+- Windows apre il .bat da System32
+- La directory corrente diventa System32
+- Il venv viene creato nel posto sbagliato
+
+---
+
 ## 🐛 Problema: Script si Blocca su "Aggiornamento pip"
+
 
 ### Sintomi
 - Lo script INSTALLA.bat si blocca alla fase `[4/8] Aggiornamento pip...`

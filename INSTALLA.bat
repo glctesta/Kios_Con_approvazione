@@ -3,12 +3,12 @@ REM ========================================
 REM KIOSK HR - Sistema Adeverințe
 REM Script di Installazione Automatica
 REM Versione: 2.2.0
-REM Data: 2026-01-03
+REM Data: 2026-01-09
 REM ========================================
 
-REM Imposta la directory corrente a quella dello script
-REM Questo evita problemi quando viene eseguito come amministratore
-cd /d "%~dp0"
+REM IMPORTANTE: Imposta la directory corrente a quella dello script
+REM Usa pushd per gestire correttamente UAC e admin rights
+pushd "%~dp0"
 
 echo.
 echo ========================================
@@ -18,6 +18,41 @@ echo ========================================
 echo.
 echo Directory installazione: %CD%
 echo.
+
+REM Verifica che NON siamo in System32 (errore comune con UAC)
+echo %CD% | findstr /I "System32" >nul
+if %errorLevel% equ 0 (
+    echo.
+    echo [ERRORE CRITICO] Directory corrente non valida!
+    echo Lo script e' stato eseguito da: %CD%
+    echo.
+    echo SOLUZIONE:
+    echo 1. Navigare nella cartella del progetto in Esplora Risorse
+    echo 2. Tenere premuto SHIFT e fare click destro in uno spazio vuoto
+    echo 3. Selezionare "Apri finestra PowerShell qui come amministratore"
+    echo 4. Eseguire: .\INSTALLA.bat
+    echo.
+    echo OPPURE
+    echo.
+    echo 1. Copiare la cartella del progetto in C:\Temp
+    echo 2. Eseguire INSTALLA.bat da li
+    echo.
+    pause
+    exit /b 1
+)
+
+REM Verifica che app.py esista (siamo nella directory giusta)
+if not exist "app.py" (
+    echo.
+    echo [ERRORE] File app.py non trovato!
+    echo Directory corrente: %CD%
+    echo.
+    echo Questa NON sembra essere la directory del progetto Kiosk HR.
+    echo Assicurarsi di eseguire lo script dalla directory contenente app.py
+    echo.
+    pause
+    exit /b 1
+)
 
 REM Verifica privilegi amministratore
 net session >nul 2>&1
