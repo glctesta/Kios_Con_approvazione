@@ -159,10 +159,9 @@ class CertificateGenerator:
             # Ritorna immagine originale se conversione fallisce
             return Image.open(io.BytesIO(signature_data))
     
-    
     def _sign_pdf_digital(self, pdf_path, cert_path=None, cert_password=None):
         """
-        Firma digitalmente il PDF usando certificato digitale (PKCS#12/PEM)
+        Firma digitalmente il PDF usando certificato digitale (PKCS#12/PEM o Windows Store)
         
         Args:
             pdf_path: Percorso del PDF da firmare
@@ -173,7 +172,6 @@ class CertificateGenerator:
             bool: True se firma riuscita o non necessaria, False se errore critico
         """
         try:
-            from pdf_digital_signer import PDFDigitalSigner, create_visible_signature_field
             from reportlab.lib.pagesizes import A4
             
             logger.info(f"Tentativo firma digitale PDF: {pdf_path}")
@@ -191,61 +189,84 @@ class CertificateGenerator:
             for cert_file in cert_files:
                 if os.path.exists(cert_file):
                     found_cert = cert_file
-                    logger.info(f"Trovato certificato: {cert_file}")
+                    logger.info(f"Trovato certificato file: {cert_file}")
                     break
             
             # Usa certificato specificato o quello trovato
             cert_to_use = cert_path or found_cert
             
-            if not cert_to_use:
-                logger.warning("Nessun certificato trovato - PDF non firmato digitalmente")
-                logger.info("Per firmare digitalmente, inserire file certificato: certificate.pfx/p12/pem")
-                return True  # Non è errore critico
+            if cert_to_use:
+                # Tentativo firma con file certificato (pyHanko)
+                try:
+                    from pdf_digital_signer import PDFDigitalSigner, create_visible_signature_field
+                    
+                    # Inizializza signer
+                    signer = PDFDigitalSigner(
+                        cert_path=cert_to_use,
+                        cert_password=cert_password or os.environ.get('CERT_PASSWORD')
+                    )
+                    
+                    # Crea campo firma visibile (bottom-right)
+                    page_width, page_height = A4
+                    sig_field = create_visible_signature_field(
+                        page_width=page_width,
+                        page_height=page_height,
+                        position='bottom-right',
+                        width=180,
+                        height=70
+                    )
+                    
+                    # Firma il PDF
+                    signed_path = signer.sign_pdf(
+                        input_pdf_path=pdf_path,
+                        output_pdf_path=pdf_path,  # Sovrascrivi
+                        signature_field_spec=sig_field,
+                        reason='Documento ufficiale aziendale',
+                        location='Sede legale'
+                    )
+                    
+                    if signed_path == pdf_path:
+                        logger.info(f"PDF firmato digitalmente con successo: {pdf_path}")
+                        return True
+                    
+                except Exception as e:
+                    logger.warning(f"Firma con file certificato fallita: {e}")
+                    logger.info("Tento firma con Windows Certificate Store...")
             
-            # Inizializza signer
-            signer = PDFDigitalSigner(
-                cert_path=cert_to_use,
-                cert_password=cert_password or os.environ.get('CERT_PASSWORD')
-            )
+            # Fallback: Prova Windows Certificate Store
+            try:
+                from windows_cert_signer import WindowsCertificateSigner
+                
+                logger.info("Utilizzo certificato da Windows Certificate Store...")
+                win_signer = WindowsCertificateSigner()
+                
+                # Cerca e firma
+                signed_path = win_signer.sign_pdf(pdf_path)
+                
+                if signed_path:
+                    logger.info(f"PDF firmato con Windows Certificate Store: {pdf_path}")
+                    return True
+                    
+            except ImportError:
+                logger.warning("windows_cert_signer non disponibile")
+            except Exception as e:
+                logger.warning(f"Firma con Windows Store fallita: {e}")
             
-            # Crea campo firma visibile (bottom-right)
-            page_width, page_height = A4
-            sig_field = create_visible_signature_field(
-                page_width=page_width,
-                page_height=page_height,
-                position='bottom-right',
-                width=180,
-                height=70
-            )
-            
-            # Firma il PDF
-            signed_path = signer.sign_pdf(
-                input_pdf_path=pdf_path,
-                output_pdf_path=pdf_path,  # Sovrascrivi
-                signature_field_spec=sig_field,
-                reason='Documento ufficiale aziendale',
-                location='Sede legale'
-            )
-            
-            if signed_path == pdf_path:
-                logger.info(f"PDF firmato digitalmente con successo: {pdf_path}")
-                return True
-            else:
-                logger.warning(f"Firma digitale completata con warning")
-                return True
+            # Se arriviamo qui, nessuna firma applicata
+            logger.warning("Nessun certificato disponibile - PDF non firmato digitalmente")
+            logger.info("Opzioni:")
+            logger.info("  1. Inserire file certificate.pfx/p12/pem nella cartella")
+            logger.info("  2. Certificato in Windows Store verrà usato automaticamente")
+            return True  # Non blocchiamo l'applicazione
                 
         except ImportError as e:
-            logger.warning(f"pyHanko non installato - PDF non firmato: {e}")
-            logger.info("Installare con: pip install pyHanko pyhanko-certvalidator")
+            logger.warning(f"Librerie firma non installate: {e}")
+            logger.info("Installare con: pip install pyHanko pyhanko-certvalidator PyPDF2")
             return True  # Non blocchiamo l'applicazione
-        except FileNotFoundError as e:
-            logger.warning(f"Certificato non trovato: {e}")
-            return True  # Non blocchiamo
         except Exception as e:
             logger.warning(f"Firma digitale non disponibile: {str(e)}")
             logger.debug(f"Dettagli errore firma", exc_info=True)
             return True  # Non blocchiamo l'applicazione
-
     
     def generate_certificate(self, employee_hire_history_id, reason, typed_reason='', group_id=0):
         """

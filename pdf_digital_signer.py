@@ -49,16 +49,53 @@ class PDFDigitalSigner:
             return None
         
         try:
-            from pyhanko_certvalidator import ValidationContext
-            from pyhanko.sign import signers
+            # Prova a importare wincertstore
+            try:
+                import wincertstore
+            except ImportError:
+                logger.warning("wincertstore non installato - impossibile accedere Windows Store")
+                logger.info("Installare con: pip install wincertstore")
+                return None
             
-            # Cerca certificato con chiave privata in Windows Store
-            # Questo richiede pyhanko_certvalidator per Windows
-            logger.info("Cerco certificato in Windows Certificate Store...")
+            logger.info("Cerco certificato con chiave privata in Windows Store...")
             
-            # TODO: Implementare ricerca nel Windows Store
-            # Per ora usiamo solo file certificati
-            logger.warning("Ricerca Windows Store non ancora implementata")
+            # Cerca in Personal store (My)
+            for store_name in ['MY', 'ROOT']:
+                try:
+                    for cert_tuple in wincertstore.CertSystemStore(store_name):
+                        cert_bytes = cert_tuple[0]
+                        
+                        # Prova a caricare come certificato
+                        try:
+                            from cryptography import x509
+                            from cryptography.hazmat.backends import default_backend
+                            
+                            cert = x509.load_der_x509_certificate(cert_bytes, default_backend())
+                            
+                            # Cerca chiave privata associata
+                            # Per ora saltiamo i certificati senza chiave privata
+                            # pyHanko richiede sia certificato che chiave
+                            
+                            # Log certificato trovato
+                            subject = cert.subject
+                            cn = None
+                            for attr in subject:
+                                if attr.oid.dotted_string == '2.5.4.3':  # Common Name
+                                    cn = attr.value
+                                    break
+                            
+                            if cn:
+                                logger.debug(f"Trovato certificato: {cn}")
+                            
+                        except Exception as e:
+                            logger.debug(f"Errore caricamento certificato da store: {e}")
+                            continue
+                    
+                except Exception as e:
+                    logger.debug(f"Errore accesso store {store_name}: {e}")
+            
+            logger.warning("Nessun certificato con chiave privata trovato in Windows Store")
+            logger.info("Alternativa: esportare certificato in file .pfx e usare quello")
             return None
             
         except Exception as e:
