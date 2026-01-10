@@ -39,6 +39,7 @@ def create_deployment_package():
         'pdf_printer.py',
         'pdf_signature_powershell.py',
         'pdf_digital_signer.py',  # NUOVO! - Firma digitale con certificati
+        'windows_cert_signer.py',  # NUOVO! - Firma con Windows Store
         'update_signature.py',
         
         # Connettori e logger
