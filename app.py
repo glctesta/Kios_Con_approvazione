@@ -1297,6 +1297,82 @@ def print_pdf_endpoint(filename=None):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
+# ========================================
+# API NETWORK MONITORING
+# ========================================
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint per verificare connessione server"""
+    try:
+        # Verifica connessione database
+        conn = db_connection.connect()
+        db_status = 'ok' if conn else 'error'
+        
+        return jsonify({
+            'status': 'ok',
+            'database': db_status,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/log-offline', methods=['POST'])
+def log_offline_event():
+    """Registra eventi offline della rete"""
+    try:
+        from offline_logger import get_offline_logger
+        
+        data = request.json
+        event_type = data.get('event_type')  # 'start' o 'end'
+        timestamp = data.get('timestamp')
+        duration_seconds = data.get('duration_seconds')
+        user_agent = data.get('user_agent')
+        page = data.get('page')
+        
+        offline_logger = get_offline_logger()
+        offline_logger.log_event(
+            event_type=event_type,
+            timestamp=timestamp,
+            duration_seconds=duration_seconds,
+            user_agent=user_agent,
+            page=page
+        )
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Errore log offline event: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/offline-statistics', methods=['GET'])
+def get_offline_statistics():
+    """Recupera statistiche eventi offline"""
+    try:
+        from offline_logger import get_offline_logger
+        
+        hours = request.args.get('hours', 24, type=int)
+        
+        offline_logger = get_offline_logger()
+        stats = offline_logger.get_statistics(hours=hours)
+        
+        return jsonify({
+            'success': True,
+            'statistics': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Errore recupero statistiche offline: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Crea directory temp se non esiste
     os.makedirs('temp', exist_ok=True)
