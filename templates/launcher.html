@@ -393,133 +393,133 @@
             loadingContainer.innerHTML = '<p style="color: #718096;">Nu există conținut disponibil</p>';
         }
 
-        // ========================================
-        // MONITORAGGIO CONNESSIONE RETE
-        // ========================================
+        // // ========================================
+        // // MONITORAGGIO CONNESSIONE RETE
+        // // ========================================
 
-        let isOnline = navigator.onLine;
-        let lastOnlineCheck = Date.now();
-        let offlineStartTime = null;
+        // let isOnline = navigator.onLine;
+        // let lastOnlineCheck = Date.now();
+        // let offlineStartTime = null;
 
-        const offlineOverlay = document.getElementById('offlineOverlay');
+        // const offlineOverlay = document.getElementById('offlineOverlay');
 
-        // Controlla connessione al server
-        async function checkServerConnection() {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        // // Controlla connessione al server
+        // async function checkServerConnection() {
+        //     try {
+        //         const controller = new AbortController();
+        //         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-                const response = await fetch('/api/health', {
-                    method: 'GET',
-                    signal: controller.signal
-                });
+        //         const response = await fetch('/api/health', {
+        //             method: 'GET',
+        //             signal: controller.signal
+        //         });
 
-                clearTimeout(timeoutId);
-                return response.ok;
-            } catch (error) {
-                console.error('Server non raggiungibile:', error);
-                return false;
-            }
-        }
+        //         clearTimeout(timeoutId);
+        //         return response.ok;
+        //     } catch (error) {
+        //         console.error('Server non raggiungibile:', error);
+        //         return false;
+        //     }
+        // }
 
-        // Mostra overlay offline
-        function showOfflineOverlay() {
-            if (!offlineStartTime) {
-                offlineStartTime = new Date();
-                console.warn('Connessione persa:', offlineStartTime);
+        // // Mostra overlay offline
+        // function showOfflineOverlay() {
+        //     if (!offlineStartTime) {
+        //         offlineStartTime = new Date();
+        //         console.warn('Connessione persa:', offlineStartTime);
 
-                // Log evento offline al server (quando torna online)
-                logOfflineEvent('start', offlineStartTime);
-            }
+        //         // Log evento offline al server (quando torna online)
+        //         logOfflineEvent('start', offlineStartTime);
+        //     }
 
-            offlineOverlay.style.display = 'flex';
-        }
+        //     offlineOverlay.style.display = 'flex';
+        // }
 
-        // Nascondi overlay offline
-        function hideOfflineOverlay() {
-            if (offlineStartTime) {
-                const offlineEndTime = new Date();
-                const duration = (offlineEndTime - offlineStartTime) / 1000; // secondi
+        // // Nascondi overlay offline
+        // function hideOfflineOverlay() {
+        //     if (offlineStartTime) {
+        //         const offlineEndTime = new Date();
+        //         const duration = (offlineEndTime - offlineStartTime) / 1000; // secondi
 
-                console.log('Connessione ripristinata. Durata offline:', duration, 'secondi');
+        //         console.log('Connessione ripristinata. Durata offline:', duration, 'secondi');
 
-                // Log evento online recovery
-                logOfflineEvent('end', offlineEndTime, duration);
+        //         // Log evento online recovery
+        //         logOfflineEvent('end', offlineEndTime, duration);
 
-                offlineStartTime = null;
-            }
+        //         offlineStartTime = null;
+        //     }
 
-            offlineOverlay.style.display = 'none';
-        }
+        //     offlineOverlay.style.display = 'none';
+        // }
 
-        // Log evento offline al backend
-        async function logOfflineEvent(eventType, timestamp, duration = null) {
-            try {
-                const eventData = {
-                    event_type: eventType,
-                    timestamp: timestamp.toISOString(),
-                    duration_seconds: duration,
-                    user_agent: navigator.userAgent,
-                    page: window.location.pathname
-                };
+        // // Log evento offline al backend
+        // async function logOfflineEvent(eventType, timestamp, duration = null) {
+        //     try {
+        //         const eventData = {
+        //             event_type: eventType,
+        //             timestamp: timestamp.toISOString(),
+        //             duration_seconds: duration,
+        //             user_agent: navigator.userAgent,
+        //             page: window.location.pathname
+        //         };
 
-                await fetch('/api/log-offline', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(eventData)
-                });
-            } catch (error) {
-                // Non loggiamo errore qui perché potremmo essere offline
-                console.debug('Log offline event failed:', error);
-            }
-        }
+        //         await fetch('/api/log-offline', {
+        //             method: 'POST',
+        //             headers: {
+        //                 'Content-Type': 'application/json'
+        //             },
+        //             body: JSON.stringify(eventData)
+        //         });
+        //     } catch (error) {
+        //         // Non loggiamo errore qui perché potremmo essere offline
+        //         console.debug('Log offline event failed:', error);
+        //     }
+        // }
 
-        // Check connessione completo (browser + server)
-        async function performConnectionCheck() {
-            const browserOnline = navigator.onLine;
-            const serverReachable = await checkServerConnection();
+        // // Check connessione completo (browser + server)
+        // async function performConnectionCheck() {
+        //     const browserOnline = navigator.onLine;
+        //     const serverReachable = await checkServerConnection();
 
-            const currentlyOnline = browserOnline && serverReachable;
+        //     const currentlyOnline = browserOnline && serverReachable;
 
-            // Cambio stato
-            if (isOnline && !currentlyOnline) {
-                // Appena andati offline
-                console.warn('Connessione persa!');
-                isOnline = false;
-                showOfflineOverlay();
-            } else if (!isOnline && currentlyOnline) {
-                // Appena tornati online
-                console.log('Connessione ripristinata!');
-                isOnline = true;
-                hideOfflineOverlay();
-            }
+        //     // Cambio stato
+        //     if (isOnline && !currentlyOnline) {
+        //         // Appena andati offline
+        //         console.warn('Connessione persa!');
+        //         isOnline = false;
+        //         showOfflineOverlay();
+        //     } else if (!isOnline && currentlyOnline) {
+        //         // Appena tornati online
+        //         console.log('Connessione ripristinata!');
+        //         isOnline = true;
+        //         hideOfflineOverlay();
+        //     }
 
-            lastOnlineCheck = Date.now();
-        }
+        //     lastOnlineCheck = Date.now();
+        // }
 
-        // Event listeners browser
-        window.addEventListener('online', async () => {
-            console.log('Browser rilevato online');
-            await performConnectionCheck();
-        });
+        // // Event listeners browser
+        // window.addEventListener('online', async () => {
+        //     console.log('Browser rilevato online');
+        //     await performConnectionCheck();
+        // });
 
-        window.addEventListener('offline', () => {
-            console.warn('Browser rilevato offline');
-            isOnline = false;
-            showOfflineOverlay();
-        });
+        // window.addEventListener('offline', () => {
+        //     console.warn('Browser rilevato offline');
+        //     isOnline = false;
+        //     showOfflineOverlay();
+        // });
 
-        // Polling periodico (ogni 10 secondi)
-        setInterval(async () => {
-            await performConnectionCheck();
-        }, 10000); // 10 secondi
+        // // Polling periodico (ogni 10 secondi)
+        // setInterval(async () => {
+        //     await performConnectionCheck();
+        // }, 10000); // 10 secondi
 
-        // Check iniziale al caricamento pagina
-        (async () => {
-            await performConnectionCheck();
-        })();
+        // // Check iniziale al caricamento pagina
+        // (async () => {
+        //     await performConnectionCheck();
+        // })();
 
     </script>
 

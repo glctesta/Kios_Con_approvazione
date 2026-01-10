@@ -86,8 +86,10 @@ def favicon():
 @app.route('/api/news', methods=['GET'])
 def get_news():
     """Recupera messaggi news dal database con priorità per mandatory"""
+    conn = None
     try:
-        conn = db_connection.connect()
+        # Crea connessione fresca per evitare "connection broken"
+        conn = DatabaseConnection(config_manager).connect()
         if not conn:
             return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
         
@@ -163,6 +165,13 @@ def get_news():
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        # Chiudi connessione per liberare risorse
+        if conn:
+            try:
+                conn.close()
+            except:
+                pass
 
 
 @app.route('/api/slideshow-images', methods=['GET'])
