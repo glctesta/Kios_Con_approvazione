@@ -7,11 +7,11 @@ let isCheckingConnection = false;
 
 const offlineOverlay = document.getElementById('offlineOverlay');
 
-// Controlla connessione al server
+// Controlla connessione al server locale
 async function checkServerConnection() {
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
 
         const response = await fetch('/api/health', {
             method: 'GET',
@@ -23,6 +23,29 @@ async function checkServerConnection() {
         return response.ok;
     } catch (error) {
         console.debug('Server check fallito:', error.message);
+        return false;
+    }
+}
+
+// Controlla connessione internet esterna (non solo localhost)
+async function checkInternetConnection() {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+        // Usa Google favicon (piccolo, veloce, sempre disponibile)
+        const response = await fetch('https://www.google.com/favicon.ico', {
+            method: 'HEAD',
+            mode: 'no-cors',
+            cache: 'no-cache',
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        // no-cors restituisce sempre ok, quindi se arriva qui è online
+        return true;
+    } catch (error) {
+        console.debug('Internet check fallito:', error.message);
         return false;
     }
 }
@@ -78,7 +101,7 @@ async function logOfflineRecovery(timestamp, duration) {
     }
 }
 
-// Check connessione completo
+// Check connessione completo (server + internet)
 async function performConnectionCheck() {
     if (isCheckingConnection) return;
 
@@ -87,6 +110,7 @@ async function performConnectionCheck() {
     try {
         const browserOnline = navigator.onLine;
 
+        // Se browser offline, non serve controllare altro
         if (!browserOnline) {
             if (isOnline) {
                 console.warn('Browser offline');
@@ -96,11 +120,23 @@ async function performConnectionCheck() {
             return;
         }
 
-        const serverReachable = await checkServerConnection();
-        const currentlyOnline = browserOnline && serverReachable;
+        // Controlla sia server che internet
+        const [serverOk, internetOk] = await Promise.all([
+            checkServerConnection(),
+            checkInternetConnection()
+        ]);
 
+        // Serve ENTRAMBI per essere online
+        const currentlyOnline = browserOnline && serverOk && internetOk;
+
+        // Cambio stato
         if (isOnline && !currentlyOnline) {
-            console.warn('Server non raggiungibile!');
+            if (!serverOk) {
+                console.warn('Server non raggiungibile!');
+            }
+            if (!internetOk) {
+                console.warn('Internet non raggiungibile!');
+            }
             isOnline = false;
             showOfflineOverlay();
         } else if (!isOnline && currentlyOnline) {
