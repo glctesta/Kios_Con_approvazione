@@ -45,6 +45,7 @@ def create_deployment_package():
         # Connettori e logger
         'email_connector.py',
         'kiosk_request_logger.py',
+        'offline_logger.py',  # NUOVO! - Logging eventi disconnessione rete
         
         # Hardware e RFID
         'badge_reader.py',
@@ -84,6 +85,7 @@ def create_deployment_package():
         'GUIDA_INSTALLAZIONE.md',
         'GUIDA_NEWS_SLIDESHOW.md',
         'GUIDA_FIRMA_DIGITALE.md',  # NUOVO! - Setup firma digitale
+        'SETUP_FIRMA_PRODUZIONE.md',  # NUOVO! - Deploy firma produzione
         'RELEASE_NOTES_v2.2.0.md',
         'QUICK_START_KIOSK_MONITORING.md',
         'QUICK_START_CONFIGURAZIONE.md',  # NUOVO! - Prima config DB
