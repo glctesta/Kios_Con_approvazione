@@ -1,21 +1,21 @@
 @echo off
 REM ========================================
 REM KIOSK HR - Creazione Pacchetto Deploy
-REM Versione: 2.2.0
-REM Data: 2026-01-03
+REM Versione: 2.2.1 (Hotfix Critico Stampa PDF)
+REM Data: 2026-01-12
 REM ========================================
 
 echo.
 echo ========================================
 echo   KIOSK HR - Creazione Pacchetto
-echo   Versione 2.2.0
+echo   Versione 2.2.1 (Hotfix Stampa PDF)
 echo ========================================
 echo.
 
 REM Imposta nome pacchetto con timestamp
 for /f "tokens=2 delims==" %%I in ('wmic os get localdatetime /value') do set datetime=%%I
 set TIMESTAMP=%datetime:~0,8%_%datetime:~8,6%
-set PACKAGE_NAME=Kiosk_HR_v2.2.0_%TIMESTAMP%.zip
+set PACKAGE_NAME=Kiosk_HR_v2.2.1_%TIMESTAMP%.zip
 
 echo [1/6] Preparazione directory temporanea...
 if exist "deploy_temp" rmdir /s /q deploy_temp
@@ -34,12 +34,17 @@ copy config_manager.py deploy_temp\ >nul
 copy db_connection.py deploy_temp\ >nul
 copy digital_signature.py deploy_temp\ >nul
 copy email_connector.py deploy_temp\ >nul
+copy kiosk_request_logger.py deploy_temp\ >nul
+copy offline_logger.py deploy_temp\ >nul
 copy pdf_printer.py deploy_temp\ >nul
+copy pdf_digital_signer.py deploy_temp\ >nul
 copy printer_keepalive.py deploy_temp\ >nul
 copy rfid_reader.py deploy_temp\ >nul
+copy service_kiosk_reports.py deploy_temp\ >nul
 copy setup.py deploy_temp\ >nul
 copy update_signature.py deploy_temp\ >nul
 copy utils.py deploy_temp\ >nul
+copy windows_cert_signer.py deploy_temp\ >nul
 copy requirements.txt deploy_temp\ >nul
 echo [OK] File Python copiati
 
@@ -79,6 +84,7 @@ REM Script di installazione e avvio
 copy INSTALLA.bat deploy_temp\ >nul
 copy START_APP.bat deploy_temp\ >nul
 copy START_SISTEMA_KIOSK.bat deploy_temp\ >nul
+copy START_KIOSK_REPORTS_SERVICE.bat deploy_temp\ >nul
 copy AGGIORNA_FIRMA.bat deploy_temp\ >nul
 
 REM Documentazione
@@ -91,6 +97,9 @@ copy GUIDA_KIOSK_FULLSCREEN.md deploy_temp\ >nul
 copy GUIDA_NEWS_SLIDESHOW.md deploy_temp\ >nul
 copy CONFIGURAZIONE_RETE.md deploy_temp\ >nul
 copy STAMPA_AUTOMATICA.md deploy_temp\ >nul
+copy KIOSK_MONITORING_SYSTEM.md deploy_temp\ >nul
+copy FIX_STAMPA_PDF_CODICE_GREZZO.md deploy_temp\ >nul
+copy RELEASE_NOTES_v2.2.1.md deploy_temp\ >nul
 copy RELEASE_NOTES_v2.2.0.md deploy_temp\ >nul
 copy RELEASE_NOTES_v2.1.1.md deploy_temp\ >nul
 

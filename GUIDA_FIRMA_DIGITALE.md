@@ -66,10 +66,10 @@ pip install pyhanko-certvalidator==0.26.3
    Se il certificato ha una password, imposta variabile d'ambiente:
    ```powershell
    # Windows PowerShell
-   $env:CERT_PASSWORD = "TuaPasswordQui"
+   $env:CERT_PASSWORD = "!(^@Gi@nluc@5"
    
    # Oppure permanente (sistema)
-   setx CERT_PASSWORD "TuaPasswordQui"
+   setx CERT_PASSWORD "!(^@Gi@nluc@5"
    ```
 
 4. **Fine!** Il sistema troverà automaticamente il certificato.

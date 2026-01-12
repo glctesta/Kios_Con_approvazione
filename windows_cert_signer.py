@@ -133,7 +133,7 @@ class WindowsCertificateSigner:
             
             # Testo firma
             can.setFont("Helvetica-Bold", 10)
-            can.drawString(x + 10, y + height - 15, "Firmato digitalmente")
+            can.drawString(x + 10, y + height - 15, "Semnat cu semnatura digitala")
             
             can.setFont("Helvetica", 8)
             # Estrai nome da Subject (CN=...)

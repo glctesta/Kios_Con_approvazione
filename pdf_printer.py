@@ -82,8 +82,8 @@ def print_pdf_powershell(pdf_path, printer_name=None):
             except Exception as e:
                 logger.warning(f"SumatraPDF fallito: {e}")
         
-        # Prova metodo 2: PowerShell con Out-Printer (NON apre Adobe)
-        logger.info("Uso PowerShell Out-Printer per stampa silenziosa")
+        # Prova metodo 2: PowerShell con Adobe/GhostScript/System Process (stampa silenziosa)
+        logger.info("Uso PowerShell per stampa silenziosa")
         
         # Escape dei caratteri speciali nel path
         escaped_path = pdf_path.replace("'", "''")
@@ -140,11 +140,28 @@ def print_pdf_powershell(pdf_path, printer_name=None):
                 }} elseif (Test-Path $gsPath32) {{
                     $gsExe = $gsPath32
                 }} else {{
-                    # Ultimo fallback: PowerShell default (potrebbe aprire Adobe)
-                    Write-Warning "Adobe Reader e GhostScript non trovati, uso metodo fallback"
-                    $null = Out-Printer -InputObject (Get-Content -Path '{escaped_path}' -Raw) -Name '{escaped_printer}'
-                    Start-Sleep -Seconds 2
-                    Write-Output 'SUCCESS'
+                    # Ultimo fallback: usa l'applicazione predefinita del sistema
+                    Write-Warning "Adobe Reader e GhostScript non trovati, uso applicazione predefinita"
+                    
+                    # Usa Start-Process con il verbo 'print' per stampare il file PDF
+                    # Questo aprirà l'applicazione predefinita per PDF in modalità nascosta
+                    $printProcess = New-Object System.Diagnostics.ProcessStartInfo
+                    $printProcess.FileName = '{escaped_path}'
+                    $printProcess.Verb = 'print'
+                    $printProcess.Arguments = '"{escaped_printer}"'
+                    $printProcess.CreateNoWindow = $true
+                    $printProcess.WindowStyle = 'Hidden'
+                    
+                    $process = [System.Diagnostics.Process]::Start($printProcess)
+                    
+                    # Attendi completamento (max 30 sec)
+                    if ($process) {{
+                        Start-Sleep -Seconds 3
+                        Write-Output 'SUCCESS'
+                    }} else {{
+                        Write-Output 'ERROR: Impossibile avviare processo di stampa'
+                        exit 1
+                    }}
                     exit 0
                 }}
                 

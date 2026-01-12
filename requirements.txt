@@ -42,4 +42,4 @@ Pillow==10.4.0
 # Firma digitale PDF con certificati
 pyHanko==0.21.0
 pyhanko-certvalidator==0.26.3
-wincertstore==0.2.1; sys_platform == 'win32'  # Windows Certificate Store
+wincertstore==0.2; sys_platform == 'win32'  # Windows Certificate Store
