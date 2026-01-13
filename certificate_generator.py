@@ -467,7 +467,7 @@ class CertificateGenerator:
             INNER JOIN employee.dbo.EmployeeAddress A 
                 ON E.EmployeeId = A.EmployeeId AND A.DateOut IS NULL
             INNER JOIN employee.geo.Towns T 
-                ON E.BirthCityId = T.TownId
+                ON a.TownAddressId = T.TownId
             INNER JOIN employee.geo.Counties C 
                 ON T.CountyId = C.CountyId
             INNER JOIN employee.geo.Nations N 
@@ -570,7 +570,7 @@ class CertificateGenerator:
                 M.NoCM,
                 FORMAT(M.FromData, 'd', 'ro-ro') AS DateStart,
                 FORMAT(M.ToData, 'd', 'ro-ro') AS DateFinish,
-                DATEDIFF(DAY, M.FromData, M.ToData) AS Days
+                DATEDIFF(DAY, M.FromData, M.ToData) +1 AS Days
             FROM Timeclocking.dbo.MedicalRequest M
             INNER JOIN Timeclocking.dbo.EmployeeRequestEntireDay D 
                 ON M.IDEmployeeRequestEntireDay = D.IDEmployeeRequestEntireDay
