@@ -82,10 +82,10 @@ def print_pdf_powershell(pdf_path, printer_name=None):
             except Exception as e:
                 logger.warning(f"SumatraPDF fallito: {e}")
         
-        # Prova metodo 2: PowerShell con Adobe/GhostScript/System Process (stampa silenziosa)
-        logger.info("Uso PowerShell per stampa silenziosa")
+        # Metodo 2: Stampa SILENZIOSA usando Windows Shell (NO PDF viewer)
+        logger.info("Uso Windows Shell per stampa silenziosa")
         
-        # Escape dei caratteri speciali nel path
+        # NON escape i backslash - usa il path come è
         escaped_path = pdf_path.replace("'", "''")
         escaped_printer = printer_name.replace("'", "''")
         
@@ -100,77 +100,25 @@ def print_pdf_powershell(pdf_path, printer_name=None):
                 exit 1
             }}
             
-            # Metodo diretto senza aprire Adobe: usa Adobe Reader in modalità nascosta
-            $adobePath = $null
-            $possiblePaths = @(
-                "$env:ProgramFiles\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe",
-                "$env:ProgramFiles (x86)\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe",
-                "$env:ProgramFiles\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe",
-                "$env:ProgramFiles (x86)\\Adobe\\Reader 11.0\\Reader\\AcroRd32.exe"
-            )
+            # Usa il metodo Windows nativo 'printto' (COMPLETAMENTE SILENZIOSO)
+            # Questo NON apre nessun programma, stampa direttamente
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = '{escaped_path}'
+            $psi.Verb = 'printto'
+            $psi.Arguments = '"{escaped_printer}"'
+            $psi.CreateNoWindow = $true
+            $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+            $psi.UseShellExecute = $true
             
-            foreach ($path in $possiblePaths) {{
-                if (Test-Path $path) {{
-                    $adobePath = $path
-                    break
-                }}
-            }}
+            $process = [System.Diagnostics.Process]::Start($psi)
             
-            if ($adobePath) {{
-                # Usa Adobe Reader con parametri silenziosi
-                # /t = print to printer, /h = hide window
-                $process = Start-Process -FilePath $adobePath `
-                    -ArgumentList "/t","'{escaped_path}'","{escaped_printer}" `
-                    -WindowStyle Hidden -PassThru -NoNewWindow
-                
-                # Attendi max 30 secondi per completamento
-                if ($process.WaitForExit(30000)) {{
-                    Write-Output 'SUCCESS'
-                }} else {{
-                    $process.Kill()
-                    Write-Output 'SUCCESS'  # Considera comunque successo
-                }}
-            }} else {{
-                # Fallback: usa GhostScript se disponibile
-                $gsPath = "$env:ProgramFiles\\gs\\gs9.56.1\\bin\\gswin64c.exe"
-                $gsPath32 = "$env:ProgramFiles (x86)\\gs\\gs9.56.1\\bin\\gswin32c.exe"
-                
-                if (Test-Path $gsPath) {{
-                    $gsExe = $gsPath
-                }} elseif (Test-Path $gsPath32) {{
-                    $gsExe = $gsPath32
-                }} else {{
-                    # Ultimo fallback: usa l'applicazione predefinita del sistema
-                    Write-Warning "Adobe Reader e GhostScript non trovati, uso applicazione predefinita"
-                    
-                    # Usa Start-Process con il verbo 'print' per stampare il file PDF
-                    # Questo aprirà l'applicazione predefinita per PDF in modalità nascosta
-                    $printProcess = New-Object System.Diagnostics.ProcessStartInfo
-                    $printProcess.FileName = '{escaped_path}'
-                    $printProcess.Verb = 'print'
-                    $printProcess.Arguments = '"{escaped_printer}"'
-                    $printProcess.CreateNoWindow = $true
-                    $printProcess.WindowStyle = 'Hidden'
-                    
-                    $process = [System.Diagnostics.Process]::Start($printProcess)
-                    
-                    # Attendi completamento (max 30 sec)
-                    if ($process) {{
-                        Start-Sleep -Seconds 3
-                        Write-Output 'SUCCESS'
-                    }} else {{
-                        Write-Output 'ERROR: Impossibile avviare processo di stampa'
-                        exit 1
-                    }}
-                    exit 0
-                }}
-                
-                # Usa GhostScript per stampa diretta
-                $gsArgs = "-dPrinted", "-dBATCH", "-dNOPAUSE", "-dNOSAFER", "-dNumCopies=1", `
-                          "-sDEVICE=mswinpr2", "-sOutputFile=%printer%{escaped_printer}", "'{escaped_path}'"
-                $process = Start-Process -FilePath $gsExe -ArgumentList $gsArgs `
-                           -WindowStyle Hidden -PassThru -Wait
+            if ($process) {{
+                # Attendi un po' per permettere alla stampa di essere accodata
+                Start-Sleep -Seconds 2
                 Write-Output 'SUCCESS'
+            }} else {{
+                Write-Output 'ERROR: Failed to start print process'
+                exit 1
             }}
         }} catch {{
             Write-Output "ERROR: $($_.Exception.Message)"

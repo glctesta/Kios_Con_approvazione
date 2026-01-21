@@ -1382,6 +1382,182 @@ def get_offline_statistics():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/news/print', methods=['POST'])
+def print_news():
+    """Stampa una news specifica con logo e registrazione in KiosRequestes"""
+    conn = None  # Inizializza per evitare UnboundLocalError in finally
+    try:
+        data = request.json
+        news_id = data.get('newsId')
+        news_text = data.get('newsText')
+        news_date = data.get('newsDate')
+        publisher = data.get('publisher', 'Sistema')
+        
+        if not news_id or not news_text:
+            return jsonify({'success': False, 'error': 'Dati incompleti'}), 400
+        
+        logger.info(f"📄 Richiesta stampa news ID: {news_id}")
+        
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+        
+        # 1. Registra richiesta in KiosRequestes
+        ip_address = request.remote_addr or 'Unknown'
+        room_name = 'Kiosk HR'
+        
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO [Employee].[dbo].[KiosRequestes] 
+                (RequestDate, IpRequest, RequestBy, RequestWhat, Executed)
+            VALUES (GETDATE(), ?, ?, ?, 0)
+        """, (ip_address, room_name, f'Stampa News {news_id}'))
+        conn.commit()
+        
+        logger.info("✅ Richiesta registrata in KiosRequestes")
+        
+        # 2. Genera PDF della news
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.utils import ImageReader
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from datetime import datetime as dt
+        
+        # Registra font
+        try:
+            pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
+            pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', 'DejaVuSans-Bold.ttf'))
+            font_name = 'DejaVuSans'
+            font_bold = 'DejaVuSans-Bold'
+        except:
+            font_name = 'Helvetica'
+            font_bold = 'Helvetica-Bold'
+        
+        # Crea PDF
+        pdf_filename = f"news_{news_id}_{dt.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_path = os.path.join('temp', pdf_filename)
+        
+        c = canvas.Canvas(pdf_path, pagesize=A4)
+        width, height = A4
+        
+        # Logo
+        if os.path.exists('logo.png'):
+            try:
+                img = ImageReader('logo.png')
+                c.drawImage(img, 30*mm, height - 40*mm, width=40*mm, height=20*mm, preserveAspectRatio=True)
+            except:
+                pass
+        
+        # Titolo
+        c.setFont(font_bold, 24)
+        c.drawString(80*mm, height - 30*mm, "Comunicare Companiei")
+        
+        # Linea separatore
+        c.setStrokeColorRGB(0.2, 0.2, 0.2)
+        c.setLineWidth(2)
+        c.line(30*mm, height - 45*mm, width - 30*mm, height - 45*mm)
+        
+        # Metadati
+        y_pos = height - 55*mm
+        c.setFont(font_bold, 14)
+        c.drawString(30*mm, y_pos, "Data:")
+        c.setFont(font_name, 14)
+        formatted_date = dt.fromisoformat(news_date.replace('Z', '+00:00')).strftime('%d/%m/%Y') if news_date else dt.now().strftime('%d/%m/%Y')
+        c.drawString(70*mm, y_pos, formatted_date)
+        
+        y_pos -= 8*mm
+        c.setFont(font_bold, 14)
+        c.drawString(30*mm, y_pos, "Publicat de:")
+        c.setFont(font_name, 14)
+        c.drawString(70*mm, y_pos, publisher)
+        
+        y_pos -= 8*mm
+        c.setFont(font_bold, 14)
+        c.drawString(30*mm, y_pos, "ID Știri:")
+        c.setFont(font_name, 14)
+        c.drawString(70*mm, y_pos, str(news_id))
+        
+        y_pos -= 5*mm
+        c.setLineWidth(1)
+        c.line(30*mm, y_pos, width - 30*mm, y_pos)
+        
+        # Contenuto con font 20
+        y_pos -= 10*mm
+        c.setFont(font_name, 20)
+        
+        # Word wrap
+        max_width = width - 60*mm
+        words = news_text.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            if c.stringWidth(test_line, font_name, 20) <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                current_line = [word]
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        for line in lines:
+            if y_pos < 40*mm:
+                c.showPage()
+                c.setFont(font_name, 20)
+                y_pos = height - 30*mm
+            c.drawString(30*mm, y_pos, line)
+            y_pos -= 7*mm
+        
+        # Footer
+        c.setFont(font_name, 10)
+        c.setFillColorRGB(0.5, 0.5, 0.5)
+        footer = f"Tipărit la {dt.now().strftime('%d/%m/%Y ora %H:%M')} de {room_name}"
+        c.drawCentredString(width / 2, 20*mm, footer)
+        c.save()
+        
+        # 3. Stampa
+        printer_name = get_default_printer()
+        print_success = False
+        
+        if printer_name and os.path.exists(pdf_path):
+            print_success = print_pdf_silent(pdf_path, printer_name)
+            if print_success:
+                cursor.execute("""
+                    UPDATE [Employee].[dbo].[KiosRequestes]
+                    SET Executed = 1
+                    WHERE RequestWhat = ? AND RequestDate = (
+                        SELECT MAX(RequestDate) FROM [Employee].[dbo].[KiosRequestes]
+                        WHERE RequestWhat = ?)
+                """, (f'Stampa News {news_id}', f'Stampa News {news_id}'))
+                conn.commit()
+                logger.info("✅ Stampa eseguita e registrata con successo")
+            else:
+                logger.warning("⚠️ PDF generato ma stampa fallita")
+        else:
+            if not printer_name:
+                logger.warning("⚠️ Nessuna stampante configurata")
+            if not os.path.exists(pdf_path):
+                logger.error(f"⚠️ PDF non trovato: {pdf_path}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Richiesta processata',
+            'printed': print_success,
+            'pdf_generated': os.path.exists(pdf_path),
+            'printer_available': printer_name is not None
+        })
+        
+    except Exception as e:
+        logger.error(f"Errore stampa news: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Crea directory temp se non esiste
     os.makedirs('temp', exist_ok=True)

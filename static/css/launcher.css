@@ -389,6 +389,9 @@ body::before {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    max-height: 220px;
+    /* Limita altezza per evitare allungamento del frame */
+    overflow: hidden;
 }
 
 .news-message {
@@ -398,6 +401,33 @@ body::before {
     margin: 0;
     transition: opacity 0.3s ease;
     font-weight: 500;
+    overflow-y: auto;
+    /* Abilita scrolling verticale quando necessario */
+    flex: 1;
+    /* Prende lo spazio disponibile */
+    max-height: 150px;
+    /* Altezza massima prima del footer */
+    padding-right: 10px;
+    /* Spazio per la scrollbar */
+}
+
+/* Stile personalizzato scrollbar per news-message */
+.news-message::-webkit-scrollbar {
+    width: 8px;
+}
+
+.news-message::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.news-message::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+.news-message::-webkit-scrollbar-thumb:hover {
+    background: #5568d3;
 }
 
 .news-footer {

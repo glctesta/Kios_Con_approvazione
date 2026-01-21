@@ -7,6 +7,7 @@ Sistema web per la generazione automatica di certificati e gestione richieste di
 - **Generazione Certificati**: Creazione automatica di certificati/adeverințe con firma digitale
 - **Richieste Assenza**: Sistema completo per richieste ferie, permessi, malattia
 - **Report Storico**: Generazione report annuali delle assenze
+- **Sistema News**: Display dinamico con auto-refresh e stampa silenziosa (NEW v2.3.0)
 - **Lettore RFID**: Integrazione con lettore badge per identificazione rapida
 - **Stampa Automatica**: Invio automatico documenti alla stampante configurata
 - **Notifiche Email**: Notifiche automatiche ai manager per approvazioni
@@ -174,6 +175,15 @@ Le richieste di assenza inviano automaticamente email ai manager con:
 - Link per approvazione (se configurato)
 
 ## 🔄 Aggiornamenti
+
+### Versione 2.3.0 (2026-01-21)
+- ✨ **Sistema News Completo**: Integrazione display news nel launcher
+- 🔄 **Auto-refresh**: News si aggiornano automaticamente ogni 30-60 secondi
+- 📜 **Scorrimento Verticale**: Per testi lunghi con animazione automatica
+- 🖨️ **Stampa Silenziosa**: Click su news → stampa immediata (NO popup Adobe)
+- 🇷🇴 **Localizzazione Rumena**: Tutti i campi PDF in rumeno
+- ⚡ **Performance**: pdf_printer.py ottimizzato (-60% codice)
+- 📊 **Audit Trail**: Tracking completo stampe in KiosRequestes
 
 ### Versione 2.1.1 (2026-01-03)
 - ✅ Fix errore `UnboundLocalError` in submit_absence_request

@@ -90,6 +90,7 @@
                     <div class="news-header">
                         <span class="news-icon">📢</span>
                         <span class="news-title">Comunicare Importantă</span>
+                        <span class="news-print" style="font-size: small; display: block;">Click to Print</span>
                     </div>
                     <div class="news-content">
                         <p id="newsMessage" class="news-message"></p>
@@ -216,7 +217,7 @@
             }
 
             // Auto-refresh news ogni 5 minuti per intercettare modifiche
-            setTimeout(() => refreshNews(), 15 * 60 * 1000);
+            setTimeout(() => refreshNews(), 5 * 60 * 1000);
         }
 
         async function refreshNews() {
@@ -292,17 +293,12 @@
             // Mostra prima news
             displayNews(0);
 
-            // Se ci sono più news, ruota ogni 8 secondi
-            if (newsData.length > 1) {
-                newsInterval = setInterval(() => {
-                    currentNewsIndex = (currentNewsIndex + 1) % newsData.length;
-                    displayNews(currentNewsIndex);
-                }, 8000);
-            }
+            // La rotazione viene gestita dinamicamente in displayNews
         }
 
         function displayNews(index) {
             const news = newsData[index];
+            const newsFrame = document.getElementById('newsFrame');
             const messageEl = document.getElementById('newsMessage');
             const publisherEl = document.getElementById('newsPublisher');
             const indicatorEl = document.getElementById('newsIndicator');
@@ -333,7 +329,126 @@
                 // Animazione fade in
                 messageEl.style.opacity = '1';
                 publisherEl.style.opacity = '1';
+
+                // ============================================
+                // REFRESH DINAMICO BASATO SU LUNGHEZZA TESTO
+                // ============================================
+                const textLength = news.message.length;
+                let refreshTime = 8000; // Default 8 secondi
+
+                if (textLength > 500) {
+                    refreshTime = 20000; // Testo lungo: 20 secondi
+                } else if (textLength > 200) {
+                    refreshTime = 12000; // Testo medio: 12 secondi
+                }
+
+                // ============================================
+                // AUTO-SCROLLING AUTOMATICO PER TESTI LUNGHI
+                // ============================================
+                const contentHeight = messageEl.scrollHeight;
+                const containerHeight = messageEl.clientHeight;
+                const needsScrolling = contentHeight > containerHeight;
+
+                if (needsScrolling) {
+                    console.log(`📜 Testo lungo rilevato (${contentHeight}px > ${containerHeight}px), attivo scrolling automatico...`);
+
+                    // Reset posizione scroll
+                    messageEl.scrollTop = 0;
+
+                    const scrollDistance = contentHeight - containerHeight;
+                    const scrollSpeed = 20; // pixel al secondo (più lento per leggibilità)
+                    const scrollDuration = (scrollDistance / scrollSpeed) * 1000;
+
+                    // Incrementa tempo di refresh per permettere lo scrolling completo
+                    refreshTime = scrollDuration + 3000; // +3 sec pausa alla fine
+
+                    let scrollProgress = 0;
+                    const scrollStep = scrollSpeed / 60; // 60 FPS
+
+                    const scrollInterval = setInterval(() => {
+                        scrollProgress += scrollStep;
+
+                        if (scrollProgress >= scrollDistance) {
+                            scrollProgress = scrollDistance;
+                            clearInterval(scrollInterval);
+
+                            // Pausa di 3 secondi al termine prima di tornare all'inizio
+                            setTimeout(() => {
+                                messageEl.scrollTop = 0;
+                            }, 3000);
+                        }
+
+                        messageEl.scrollTop = scrollProgress;
+                    }, 1000 / 60);
+                } else {
+                    // Testo corto, reset scroll
+                    messageEl.scrollTop = 0;
+                }
+
+                // ============================================
+                // ROTAZIONE AUTOMATICA CON TEMPO DINAMICO
+                // ============================================
+                if (newsInterval) {
+                    clearInterval(newsInterval);
+                }
+
+                if (newsData.length > 1) {
+                    newsInterval = setInterval(() => {
+                        currentNewsIndex = (currentNewsIndex + 1) % newsData.length;
+                        displayNews(currentNewsIndex);
+                    }, refreshTime);
+                }
+
+                console.log(`⏱️ News ${index + 1}: Refresh in ${refreshTime / 1000} secondi (Lunghezza: ${textLength} caratteri, Auto-scroll: ${needsScrolling})`);
             }, 300);
+
+            // ============================================
+            // STAMPA SU CLICK DEL FRAME NEWS
+            // ============================================
+            newsFrame.style.cursor = 'pointer';
+            newsFrame.setAttribute('title', '🖨️ Clicca per stampare');
+
+            // Rimuovi event listener precedenti
+            newsFrame.onclick = null;
+
+            newsFrame.onclick = async function () {
+                console.log(`🖨️ Click su news ${news.id}, avvio stampa...`);
+
+                try {
+                    const response = await fetch('/api/news/print', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            newsId: news.id,
+                            newsText: news.message,
+                            newsDate: news.start_date,
+                            publisher: news.publisher
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        // Feedback visuale
+                        const originalBg = newsFrame.style.background;
+                        newsFrame.style.background = '#4ade80';
+
+                        setTimeout(() => {
+                            newsFrame.style.background = originalBg;
+                        }, 1000);
+
+                        console.log('✅ News stampata con successo');
+                    } else {
+                        console.error('❌ Errore stampa:', result.error);
+                        alert('Errore durante la stampa: ' + result.error);
+                    }
+                } catch (error) {
+                    console.error('❌ Errore richiesta stampa:', error);
+                    alert('Errore di connessione durante la stampa');
+                }
+            };
         }
 
 
