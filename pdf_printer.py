@@ -100,24 +100,34 @@ def print_pdf_powershell(pdf_path, printer_name=None):
                 exit 1
             }}
             
-            # Usa il metodo Windows nativo 'printto' (COMPLETAMENTE SILENZIOSO)
-            # Questo NON apre nessun programma, stampa direttamente
-            $psi = New-Object System.Diagnostics.ProcessStartInfo
-            $psi.FileName = '{escaped_path}'
-            $psi.Verb = 'printto'
-            $psi.Arguments = '"{escaped_printer}"'
-            $psi.CreateNoWindow = $true
-            $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-            $psi.UseShellExecute = $true
+            # Cerca Adobe Acrobat Reader
+            $adobePaths = @(
+                "C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe",
+                "C:\\Program Files (x86)\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe",
+                "C:\\Program Files\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe"
+            )
             
-            $process = [System.Diagnostics.Process]::Start($psi)
+            $adobePath = $null
+            foreach ($path in $adobePaths) {{
+                if (Test-Path $path) {{
+                    $adobePath = $path
+                    break
+                }}
+            }}
             
-            if ($process) {{
-                # Attendi un po' per permettere alla stampa di essere accodata
-                Start-Sleep -Seconds 2
+            if ($adobePath) {{
+                # Usa Adobe Reader con parametro /t per stampa silenziosa
+                # /t = print and terminate (NO GUI)
+                $proc = Start-Process -FilePath $adobePath `
+                    -ArgumentList "/t",'"{escaped_path}"','"{escaped_printer}"' `
+                    -WindowStyle Hidden `
+                    -PassThru
+                
+                # Attendi che termini
+                Wait-Process -Id $proc.Id -Timeout 30 -ErrorAction SilentlyContinue
                 Write-Output 'SUCCESS'
             }} else {{
-                Write-Output 'ERROR: Failed to start print process'
+                Write-Output 'ERROR: Adobe Reader not found'
                 exit 1
             }}
         }} catch {{

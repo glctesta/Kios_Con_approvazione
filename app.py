@@ -108,7 +108,8 @@ def get_news():
             EndNews,
             News,
             Publisher,
-            IsMandatory
+            IsMandatory,
+            Printable
         FROM [Employee].[dbo].[News]
         WHERE ? >= StartNews AND ? <= EndNews
         ORDER BY IsMandatory DESC, StartNews ASC
@@ -136,7 +137,8 @@ def get_news():
                 'end_date': row[3].isoformat() if row[3] else None,
                 'message': row[4],
                 'publisher': row[5],
-                'is_mandatory': bool(row[6])
+                'is_mandatory': bool(row[6]),
+                'printable': bool(row[7]) if len(row) > 7 else False
             }
             
             if news_item['is_mandatory']:
@@ -1392,6 +1394,15 @@ def print_news():
         news_text = data.get('newsText')
         news_date = data.get('newsDate')
         publisher = data.get('publisher', 'Sistema')
+        printable = data.get('printable', False)  # Nuovo campo
+        
+        # Controllo se la news è stampabile
+        if not printable:
+            logger.warning(f"⚠️ Tentativo stampa news {news_id} NON stampabile (Printable=0)")
+            return jsonify({
+                'success': False, 
+                'error': 'Questa news non può essere stampata'
+            }), 403
         
         if not news_id or not news_text:
             return jsonify({'success': False, 'error': 'Dati incompleti'}), 400
@@ -1483,34 +1494,74 @@ def print_news():
         c.setLineWidth(1)
         c.line(30*mm, y_pos, width - 30*mm, y_pos)
         
-        # Contenuto con font 20
+        # Contenuto con font 18 (ridotto leggermente per più spazio)
         y_pos -= 10*mm
-        c.setFont(font_name, 20)
+        c.setFont(font_name, 18)
         
-        # Word wrap
-        max_width = width - 60*mm
-        words = news_text.split()
+        # Margini migliorati
+        left_margin = 35*mm  # Maggiore margine sinistro
+        max_width = width - 70*mm  # Margini bilanciati
+        
+        # Split testo su punti per paragrafi
+        # Ogni frase dopo un punto inizia su nuova riga
+        import re
+        
+        # Split su punteggiatura (.!?) seguita da spazio
+        # Mantiene la punteggiatura nella frase
+        sentence_endings = re.split(r'([.!?])\s+', news_text)
+        
+        sentences = []
+        for i in range(0, len(sentence_endings)-1, 2):
+            if sentence_endings[i].strip():
+                sentence = sentence_endings[i].strip() + sentence_endings[i+1]
+                sentences.append(sentence)
+        
+        # Aggiungi ultima parte se non termina con punteggiatura
+        if len(sentence_endings) % 2 == 1 and sentence_endings[-1].strip():
+            sentences.append(sentence_endings[-1].strip())
+        
+        logger.info(f"📝 Split testo in {len(sentences)} frasi per formattazione PDF")
+        
+        # Word wrap per ogni frase
         lines = []
-        current_line = []
+        for idx, sentence in enumerate(sentences):
+            words = sentence.split()
+            current_line = []
+            
+            for word in words:
+                test_line = ' '.join(current_line + [word])
+                if c.stringWidth(test_line, font_name, 18) <= max_width:
+                    current_line.append(word)
+                else:
+                    if current_line:
+                        lines.append(' '.join(current_line))
+                    current_line = [word]
+            
+            if current_line:
+                lines.append(' '.join(current_line))
+            
+            # Aggiungi spazio extra dopo ogni frase (tranne l'ultima)
+            if idx < len(sentences) - 1:
+                lines.append('PARAGRAPH_BREAK')  # Marker speciale invece di stringa vuota
         
-        for word in words:
-            test_line = ' '.join(current_line + [word])
-            if c.stringWidth(test_line, font_name, 20) <= max_width:
-                current_line.append(word)
-            else:
-                if current_line:
-                    lines.append(' '.join(current_line))
-                current_line = [word]
-        if current_line:
-            lines.append(' '.join(current_line))
+        logger.info(f"📄 Formattate {len(lines)} righe (inclusi {sentences.__len__()-1} spazi paragrafo)")
+        
+        # Stampa linee con spaziatura migliorata
+        line_height = 6.5*mm
+        paragraph_spacing = 3*mm  # Spazio extra tra paragrafi
         
         for line in lines:
             if y_pos < 40*mm:
                 c.showPage()
-                c.setFont(font_name, 20)
+                c.setFont(font_name, 18)
                 y_pos = height - 30*mm
-            c.drawString(30*mm, y_pos, line)
-            y_pos -= 7*mm
+            
+            if line == 'PARAGRAPH_BREAK':
+                # Marker = spazio tra paragrafi
+                y_pos -= paragraph_spacing
+            else:
+                c.drawString(left_margin, y_pos, line)
+                y_pos -= line_height
         
         # Footer
         c.setFont(font_name, 10)
