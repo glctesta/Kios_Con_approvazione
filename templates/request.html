@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ro">
 
 <head>
@@ -83,6 +83,24 @@
                         <span class="label-helper">Prima zi de absență</span>
                     </label>
                     <input type="date" id="dateStart" name="dateStart" class="form-input" required disabled>
+                
+                <!-- Campi Orari (visibili solo per assenze parziali) -->
+                <div id="timeFieldsGroup" class="time-fields-group" style="display: none;">
+                    <div class="form-group">
+                        <label for="fromTime" class="form-label">
+                            <span class="label-text">Dalle ore *</span>
+                            <span class="label-helper">Orario inizio assenza</span>
+                        </label>
+                        <input type="time" id="fromTime" name="fromTime" class="form-input" min="07:30" max="22:30" step="900">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="toTime" class="form-label">
+                            <span class="label-text">Fino alle ore *</span>
+                            <span class="label-helper">Orario fine assenza</span>
+                        </label>
+                        <input type="time" id="toTime" name="toTime" class="form-input" min="07:30" max="22:30" step="900">
+                    </div>
                 </div>
 
                 <!-- Data Fine -->
@@ -158,7 +176,7 @@
     </div>
 
     <script src="/static/js/inactivity-timeout.js"></script>
-    <script src="/static/js/request.js"></script>
+        <script src="/static/js/time-fields.js"></script>`r`n<script src="/static/js/request.js"></script>
 </body>
 
 </html>

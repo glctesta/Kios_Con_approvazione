@@ -20,6 +20,9 @@ const state = {
     isProcessing: false
 };
 
+// Rendi state globale per time-fields.js
+window.state = state;
+
 // ========================================
 // CONFIGURATION
 // ========================================
@@ -297,6 +300,11 @@ function handleRequestTypeChange(e) {
         elements.availableDaysInfo.style.display = 'none';
     }
 
+    // Gestisci visibilit‡ campi orari
+    if (window.timeFieldsManagement) {
+        window.timeFieldsManagement.handleTimeFieldsVisibility(requestTypeId);
+    }
+
     // Ricalcola giorni lavorativi se date gi√† selezionate
     if (state.dateStart && state.dateEnd) {
         calculateWorkingDays();
@@ -329,6 +337,13 @@ async function handleDateChange() {
 }
 
 async function calculateWorkingDays() {
+    // Salta calcolo per assenze parziali
+    if (window.timeFieldsManagement && window.timeFieldsManagement.isPartialAbsence()) {
+        elements.workingDaysInfo.style.display = 'none';
+        elements.submitBtn.disabled = false;
+        return;
+    }
+
     if (!state.dateStart || !state.dateEnd || !state.selectedRequestType) {
         return;
     }
@@ -438,7 +453,9 @@ async function submitRequest() {
                 badgeNumber: elements.badgeInput.value.trim(),
                 requestTypeId: state.selectedRequestType,
                 dateStart: state.dateStart.toISOString().split('T')[0],
-                dateEnd: state.dateEnd.toISOString().split('T')[0]
+                dateEnd: state.dateEnd.toISOString().split('T')[0],
+                fromTime: window.timeFieldsManagement?.getTimeValues().fromTime || null,
+                toTime: window.timeFieldsManagement?.getTimeValues().toTime || null
             })
         });
 

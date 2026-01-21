@@ -11,7 +11,7 @@ const timeFieldsElements = {
 };
 
 /**
- * Gestisce la visibilitÃ  dei campi orari in base al tipo di richiesta
+ * Gestisce la visibilità dei campi orari in base al tipo di richiesta
  */
 function handleTimeFieldsVisibility(requestTypeId) {
     if (!requestTypeId || !state.requestTypes.length) {
@@ -26,7 +26,7 @@ function handleTimeFieldsVisibility(requestTypeId) {
         return;
     }
 
-    // Se IsConsideredEntireDay = 0 â†’ Mostra campi orari
+    // Se IsConsideredEntireDay = 0 ? Mostra campi orari
     if (!selectedType.entire_day) {
         showTimeFields();
 
@@ -34,20 +34,20 @@ function handleTimeFieldsVisibility(requestTypeId) {
         syncEndDateWithStartDate();
 
         // Disabilita modifica data fine
-        elements.dateEnd.readOnly = true;
-        elements.dateEnd.style.backgroundColor = '#f3f4f6';
-        elements.dateEnd.style.cursor = 'not-allowed';
+        document.getElementById('dateEnd').readOnly = true;
+        document.getElementById('dateEnd').style.backgroundColor = '#f3f4f6';
+        document.getElementById('dateEnd').style.cursor = 'not-allowed';
 
         // Nascondi info giorni lavorativi (non ha senso per assenza oraria)
-        elements.workingDaysInfo.style.display = 'none';
+        document.getElementById('workingDaysInfo').style.display = 'none';
 
     } else {
         hideTimeFields();
 
         // Riabilita modifica data fine
-        elements.dateEnd.readOnly = false;
-        elements.dateEnd.style.backgroundColor = '';
-        elements.dateEnd.style.cursor = '';
+        document.getElementById('dateEnd').readOnly = false;
+        document.getElementById('dateEnd').style.backgroundColor = '';
+        document.getElementById('dateEnd').style.cursor = '';
     }
 }
 
@@ -84,25 +84,25 @@ function hideTimeFields() {
 }
 
 function syncEndDateWithStartDate() {
-    if (elements.dateStart.value) {
-        elements.dateEnd.value = elements.dateStart.value;
+    if (document.getElementById('dateStart').value) {
+        document.getElementById('dateEnd').value = document.getElementById('dateStart').value;
     }
 
     // Aggiungi listener per mantenere sincronizzazione
-    const originalDateStartHandler = elements.dateStart.onchange;
+    const originalDateStartHandler = document.getElementById('dateStart').onchange;
 
-    elements.dateStart.onchange = function (e) {
+    document.getElementById('dateStart').onchange = function (e) {
         // Chiama handler originale se esiste
         if (originalDateStartHandler) {
             originalDateStartHandler.call(this, e);
         }
 
-        // Se Ã¨ assenza parziale, sincronizza data fine
-        const requestTypeId = parseInt(elements.requestType.value);
+        // Se è assenza parziale, sincronizza data fine
+        const requestTypeId = parseInt(document.getElementById('requestType').value);
         if (requestTypeId) {
             const selectedType = state.requestTypes.find(t => t.id === requestTypeId);
             if (selectedType && !selectedType.entire_day) {
-                elements.dateEnd.value = this.value;
+                document.getElementById('dateEnd').value = this.value;
             }
         }
     };
@@ -144,7 +144,36 @@ function timeToMinutes(time) {
     return hours * 60 + minutes;
 }
 
-// Attach event listeners quando il DOM Ã¨ pronto
+
+    // Listener diretto su data inizio per assenze parziali
+    const dateStartEl = document.getElementById('dateStart');
+    const dateEndEl = document.getElementById('dateEnd');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (dateStartEl) {
+        dateStartEl.addEventListener('change', function() {
+            // Se è assenza parziale e ha data, abilita submit
+            if (window.timeFieldsManagement && window.timeFieldsManagement.isPartialAbsence()) {
+                if (this.value && dateEndEl && submitBtn) {
+                    // Sincronizza data fine
+                    dateEndEl.value = this.value;
+                    
+                    // IMPORTANTE: Popola state per passare validazione
+                    if (window.state) {
+                        window.state.dateStart = new Date(this.value);
+                        window.state.dateEnd = new Date(this.value);
+                        console.log(' State populated:', window.state.dateStart, window.state.dateEnd);
+                    }
+                    
+                    // Abilita bottone
+                    submitBtn.disabled = false;
+                    console.log(' Submit button enabled for partial absence');
+                }
+            }
+        });
+    }
+
+
 document.addEventListener('DOMContentLoaded', function () {
     // Validazione orario toTime
     if (timeFieldsElements.toTime) {
@@ -154,7 +183,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Validazione orario fromTime
     if (timeFieldsElements.fromTime) {
         timeFieldsElements.fromTime.addEventListener('change', function () {
-            // Se toTime Ã¨ giÃ  impostato, valida
+            // Se toTime è già impostato, valida
             if (timeFieldsElements.toTime.value) {
                 validateTimeRange();
             }
@@ -171,10 +200,44 @@ window.timeFieldsManagement = {
         toTime: timeFieldsElements.toTime?.value || null
     }),
     isPartialAbsence: () => {
-        const requestTypeId = parseInt(elements.requestType.value);
+        const requestTypeId = parseInt(document.getElementById('requestType').value);
         if (!requestTypeId || !state.requestTypes.length) return false;
 
         const selectedType = state.requestTypes.find(t => t.id === requestTypeId);
         return selectedType && !selectedType.entire_day;
     }
 };
+
+// Listener per popolare state quando cambia data (per assenze parziali)
+document.addEventListener('DOMContentLoaded', function() {
+    const dateStartEl = document.getElementById('dateStart');
+    const dateEndEl = document.getElementById('dateEnd');
+    
+    if (dateStartEl) {
+        // Aggiungi listener DOPO che request.js ha fatto il suo setup
+        setTimeout(() => {
+            dateStartEl.addEventListener('change', function() {
+                if (window.timeFieldsManagement && window.timeFieldsManagement.isPartialAbsence()) {
+                    if (this.value && window.state) {
+                        // Sincronizza data fine
+                        if (dateEndEl) {
+                            dateEndEl.value = this.value;
+                        }
+                        
+                        // Popola state
+                        window.state.dateStart = new Date(this.value);
+                        window.state.dateEnd = new Date(this.value);
+                        
+                        console.log(' State populated for partial absence:', window.state.dateStart);
+                        
+                        // Abilita submit
+                        const submitBtn = document.getElementById('submitBtn');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                        }
+                    }
+                }
+            });
+        }, 500); // Aspetta che request.js sia caricato
+    }
+});
