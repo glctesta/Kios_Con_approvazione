@@ -497,7 +497,8 @@ class AbsenceRequestManager:
             return None
     
     def save_absence_request(self, registro_id, hire_history_id, request_type_id, 
-                            date_start, date_end, username="Unknown", request_type_name="Richiesta Assenza"):
+                            date_start, date_end, from_time=None, to_time=None,
+                            username="Unknown", request_type_name="Richiesta Assenza"):
         """Salva richiesta assenza nel database"""
         try:
             cursor = self.conn.cursor()
@@ -508,21 +509,27 @@ class AbsenceRequestManager:
             
             INSERT INTO [Employee].[dbo].[AbsenceRequestes]
                 ([RegistroId], [EmployrrHireHistoryId], [IDRequestType], 
-                 [DateStart], [DateEnd], [Approved], [ApprovedBy], [DateSys])
-            VALUES (?, ?, ?, ?, ?, 0, NULL, GETDATE())
+                 [DateStart], [DateEnd], [FromTime], [ToTime], 
+                 [Approved], [ApprovedBy], [DateSys])
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, GETDATE())
             
             SELECT SCOPE_IDENTITY() AS AbsenceRequestId
             """
             
             cursor.execute(query, (registro_id, hire_history_id, request_type_id, 
-                                  date_start, date_end))
+                                  date_start, date_end, from_time, to_time))
             
             row = cursor.fetchone()
             absence_request_id = int(row[0]) if row and row[0] else None
             
             self.conn.commit()
             
-            logger.info(f"Richiesta assenza salvata: AbsenceRequestId = {absence_request_id}")
+            # Log dettagliato con orari se presenti
+            time_info = ""
+            if from_time and to_time:
+                time_info = f", Orario: {from_time} - {to_time}"
+            
+            logger.info(f"Richiesta assenza salvata: AbsenceRequestId = {absence_request_id}{time_info}")
             
             # Log operazione riuscita
             log_service_operation(
@@ -530,7 +537,7 @@ class AbsenceRequestManager:
                 username=username,
                 service_name=f"Richiesta Assenza - {request_type_name}",
                 success=True,
-                additional_info=f"Periodo: {date_start} - {date_end}, RequestId: {absence_request_id}"
+                additional_info=f"Periodo: {date_start} - {date_end}{time_info}, RequestId: {absence_request_id}"
             )
             
             return absence_request_id
