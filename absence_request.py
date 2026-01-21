@@ -1,4 +1,4 @@
-"""
+﻿"""
 Modulo Richiesta Assenza
 Gestisce le richieste di assenza (ferie, permessi, ecc.)
 """
@@ -690,8 +690,17 @@ class AbsenceRequestManager:
             y -= 20
             c.drawString(50, y, f"Perioada: {request_data['date_start'].strftime('%d.%m.%Y')} - {request_data['date_end'].strftime('%d.%m.%Y')}")
             
+            # Aggiungi orari se presenti (per assenze parziali)
+            if request_data.get('from_time') and request_data.get('to_time'):
+                y -= 20
+                c.setFont(self.font_bold, 10)
+                c.drawString(50, y, f"Orario: Dalle ore {request_data['from_time']} - Fino alle ore {request_data['to_time']}")
+            
+            
             y -= 20
-            c.drawString(50, y, f"Zile lucrătoare: {request_data['working_days']}")
+            # Solo per giornate intere
+            if request_data.get('working_days') is not None:
+                c.drawString(50, y, f"Zile lucrătoare: {request_data['working_days']}")
             
             # Messaggio conferma
             y -= 50
