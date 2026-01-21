@@ -695,6 +695,8 @@ def submit_absence_request():
         request_type_id = data.get('requestTypeId')
         date_start_str = data.get('dateStart')
         date_end_str = data.get('dateEnd')
+        from_time = data.get('fromTime')  # Orari per assenze parziali
+        to_time = data.get('toTime')
         
         # Validazioni
         if not badge_number:
@@ -803,6 +805,7 @@ def submit_absence_request():
         logger.info("Salvataggio richiesta assenza...")
         absence_request_id = request_manager.save_absence_request(
             registro_id, hire_history_id, request_type_id, date_start, date_end,
+            from_time=from_time, to_time=to_time,  # Passa orari
             username=employee_name,
             request_type_name=request_type_name
         )
@@ -895,9 +898,15 @@ def submit_absence_request():
                         <td style="padding: 8px; font-weight: bold;">Perioada:</td>
                         <td style="padding: 8px;">{date_start.strftime('%d.%m.%Y')} - {date_end.strftime('%d.%m.%Y')}</td>
                     </tr>
+                    {''.join([f'''
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold;">Orario:</td>
+                        <td style="padding: 8px; color: #667eea; font-weight: bold;">Dalle ore {from_time} - Fino alle ore {to_time}</td>
+                    </tr>
+                    ''' for _ in [1] if from_time and to_time])}
                     <tr>
                         <td style="padding: 8px; font-weight: bold;">Zile lucrătoare:</td>
-                        <td style="padding: 8px;">{working_days}</td>
+                        <td style="padding: 8px;">{working_days if working_days else '-'}</td>
                     </tr>
                 </table>
                 
