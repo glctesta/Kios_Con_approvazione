@@ -222,5 +222,21 @@
     "duration_seconds": 9.314,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
     "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-21T09:30:23.485Z",
+    "local_timestamp": "2026-01-21T11:30:23.815814",
+    "duration_seconds": 988.835,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-21T09:30:24.081Z",
+    "local_timestamp": "2026-01-21T11:30:24.423559",
+    "duration_seconds": 986.988,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
   }
 ]

@@ -83,6 +83,33 @@ def favicon():
     )
 
 
+@app.route('/api/request-types', methods=['GET'])
+def get_request_types():
+    """Recupera tipi richiesta assenza con info IsConsideredEntireDay"""
+    try:
+        from absence_request import AbsenceRequestManager
+        
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+        
+        manager = AbsenceRequestManager(conn)
+        request_types = manager.get_request_types()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'request_types': request_types
+        })
+        
+    except Exception as e:
+        logger.error(f"Errore recupero tipi richiesta: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/news', methods=['GET'])
 def get_news():
     """Recupera messaggi news dal database con priorità per mandatory"""
