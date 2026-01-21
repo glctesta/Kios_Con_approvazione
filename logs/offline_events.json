@@ -190,5 +190,37 @@
     "duration_seconds": 13.71,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
     "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-21T08:14:29.868Z",
+    "local_timestamp": "2026-01-21T10:14:30.205631",
+    "duration_seconds": 0.586,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-21T08:14:37.653Z",
+    "local_timestamp": "2026-01-21T10:14:37.985821",
+    "duration_seconds": 8.725,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-21T08:14:37.967Z",
+    "local_timestamp": "2026-01-21T10:14:38.027727",
+    "duration_seconds": 9.031,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-21T08:14:38.321Z",
+    "local_timestamp": "2026-01-21T10:14:38.436913",
+    "duration_seconds": 9.314,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
   }
 ]

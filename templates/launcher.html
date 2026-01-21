@@ -424,7 +424,8 @@
                             newsId: news.id,
                             newsText: news.message,
                             newsDate: news.start_date,
-                            publisher: news.publisher
+                            publisher: news.publisher,
+                            printable: news.printable || true  // Aggiungi printable, default true per retrocompatibilità
                         })
                     });
 

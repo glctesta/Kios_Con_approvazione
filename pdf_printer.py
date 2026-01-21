@@ -100,11 +100,42 @@ def print_pdf_powershell(pdf_path, printer_name=None):
                 exit 1
             }}
             
-            # Cerca Adobe Acrobat Reader
+            
+            # METODO 1: SumatraPDF (SILENZIOSO - molto comune già installato)
+            # Download: https://www.sumatrapdfreader.org/
+            $sumatraPaths = @(
+                "C:\\\\Program Files\\\\SumatraPDF\\\\SumatraPDF.exe",
+                "C:\\\\Program Files (x86)\\\\SumatraPDF\\\\SumatraPDF.exe",
+                (Join-Path $env:LOCALAPPDATA "SumatraPDF\\\\SumatraPDF.exe")
+            )
+            
+            $sumatraPath = $null
+            foreach ($path in $sumatraPaths) {{
+                if (Test-Path $path) {{
+                    $sumatraPath = $path
+                    break
+                }}
+            }}
+            
+            if ($sumatraPath) {{
+                Write-Output 'INFO: Using SumatraPDF for silent printing'
+                # SumatraPDF sintassi: -print-to "PrinterName" "file.pdf"
+                # -silent = nessuna finestra, -exit-when-done = chiudi dopo stampa
+                $proc = Start-Process -FilePath $sumatraPath `
+                    -ArgumentList "-print-to","`"{escaped_printer}`"","`"{escaped_path}`"","-silent","-exit-when-done" `
+                    -WindowStyle Hidden `
+                    -Wait `
+                    -PassThru
+                
+                Write-Output 'SUCCESS'
+                exit 0
+            }}
+            
+            # METODO 2: Adobe Reader con /t (fallback - può mostrare finestra)
             $adobePaths = @(
-                "C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe",
-                "C:\\Program Files (x86)\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe",
-                "C:\\Program Files\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe"
+                "C:\\\\Program Files\\\\Adobe\\\\Acrobat DC\\\\Acrobat\\\\Acrobat.exe",
+                "C:\\\\Program Files (x86)\\\\Adobe\\\\Acrobat Reader DC\\\\Reader\\\\AcroRd32.exe",
+                "C:\\\\Program Files\\\\Adobe\\\\Acrobat Reader DC\\\\Reader\\\\AcroRd32.exe"
             )
             
             $adobePath = $null
@@ -116,18 +147,17 @@ def print_pdf_powershell(pdf_path, printer_name=None):
             }}
             
             if ($adobePath) {{
-                # Usa Adobe Reader con parametro /t per stampa silenziosa
-                # /t = print and terminate (NO GUI)
+                Write-Output 'WARNING: Using Adobe Reader /t (may show window briefly)'
+                $arguments = "/t `"{escaped_path}`" `"{escaped_printer}`""
+                
                 $proc = Start-Process -FilePath $adobePath `
-                    -ArgumentList "/t",'"{escaped_path}"','"{escaped_printer}"' `
-                    -WindowStyle Hidden `
+                    -ArgumentList $arguments `
                     -PassThru
                 
-                # Attendi che termini
-                Wait-Process -Id $proc.Id -Timeout 30 -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 3
                 Write-Output 'SUCCESS'
             }} else {{
-                Write-Output 'ERROR: Adobe Reader not found'
+                Write-Output 'ERROR: No PDF printer found (install SumatraPDF: https://www.sumatrapdfreader.org/)'
                 exit 1
             }}
         }} catch {{
