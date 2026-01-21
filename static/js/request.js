@@ -407,6 +407,36 @@ async function handleFormSubmit(e) {
 
     if (state.isProcessing) return;
 
+    // SKIP COMPLETO VALIDAZIONI PER ASSENZE PARZIALI
+    if (window.timeFieldsManagement && window.timeFieldsManagement.isPartialAbsence()) {
+        // Validazioni minime per assenze orarie
+        if (!state.selectedEmployee) {
+            showToast('Scana?i badge-ul', 'warning');
+            return;
+        }
+        if (!state.selectedRequestType) {
+            showToast('Selecta?i tipul de absen?a', 'warning');
+            return;
+        }
+        
+        // Valida orari
+        const {fromTime, toTime} = window.timeFieldsManagement.getTimeValues();
+        if (!fromTime || !toTime) {
+            showToast('Inserire orario inizio e fine', 'warning');
+            return;
+        }
+        if (!window.timeFieldsManagement.validateTimeRange()) {
+            return;
+        }
+        
+        // Se state Ë popolato, vai direttamente a submit
+        if (window.state && window.state.dateStart && window.state.dateEnd) {
+            console.log(' Assenza parziale validata - submit diretto');
+            await submitRequest();
+            return;
+        }
+    }
+
     // Validazioni finali
     if (!state.selectedEmployee) {
         showToast('Scana»õi badge-ul', 'warning');
