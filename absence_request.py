@@ -581,11 +581,18 @@ class AbsenceRequestManager:
             
             emails = []
             for row in rows:
-                # Assumo che la SP restituisca email nella prima colonna
-                if row[0]:
-                    email = row[0].strip()
-                    if email and '@' in email:
-                        emails.append(email)
+                # Itera su tutti i campi della riga per estrarre tutte le email
+                for field in row:
+                    # Verifica che il campo non sia NULL
+                    if field is not None:
+                        # Converte in stringa se necessario e pulisce spazi
+                        email = field.strip() if isinstance(field, str) else str(field).strip()
+                        
+                        # Valida che sia un'email (contiene @) e non vuota
+                        if email and '@' in email:
+                            # Evita duplicati nella lista
+                            if email not in emails:
+                                emails.append(email)
             
             logger.info(f"Email manager trovate: {emails}")
             return emails
