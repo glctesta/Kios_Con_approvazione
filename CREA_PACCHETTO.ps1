@@ -40,15 +40,23 @@ $pythonFiles = @(
     "setup.py",
     "update_signature.py",
     "utils.py",
+    "windows_cert_signer.py",
+    "kiosk_request_logger.py",
+    "offline_logger.py",
+    "service_kiosk_reports.py",
     "requirements.txt"
 )
 
+$copiedPython = 0
 foreach ($file in $pythonFiles) {
     if (Test-Path $file) {
         Copy-Item $file "deploy_temp\" -Force
+        $copiedPython++
+    } else {
+        Write-Host "  [ATTENZIONE] File mancante: $file" -ForegroundColor Yellow
     }
 }
-Write-Host "[OK] File Python copiati ($($pythonFiles.Count) file)" -ForegroundColor Green
+Write-Host "[OK] File Python copiati ($copiedPython/$($pythonFiles.Count) file)" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "[3/7] Copia templates e static..." -ForegroundColor Yellow
@@ -76,13 +84,32 @@ $resourceFiles = @(
 )
 
 $copiedResources = 0
+$missingResources = @()
 foreach ($file in $resourceFiles) {
     if (Test-Path $file) {
         Copy-Item $file "deploy_temp\" -Force
         $copiedResources++
+    } else {
+        $missingResources += $file
     }
 }
-Write-Host "[OK] File configurazione copiati ($copiedResources file)" -ForegroundColor Green
+
+Write-Host "[OK] File configurazione copiati ($copiedResources/$($resourceFiles.Count) file)" -ForegroundColor Green
+
+if ($missingResources.Count -gt 0) {
+    Write-Host ""
+    Write-Host "AVVISO: File di configurazione mancanti nel deploy:" -ForegroundColor Red
+    foreach ($file in $missingResources) {
+        Write-Host "  - $file" -ForegroundColor Red
+    }
+    Write-Host ""
+    Write-Host "Questi file sono CRITICI per il funzionamento:" -ForegroundColor Yellow
+    Write-Host "  encryption_key.key   -> Generato da setup.py (NECESSARIO)" -ForegroundColor Yellow
+    Write-Host "  email_key.key        -> Generato da setup.py (NECESSARIO)" -ForegroundColor Yellow
+    Write-Host "  db_config.enc        -> Generato da setup.py (NECESSARIO)" -ForegroundColor Yellow
+    Write-Host "  email_credentials.enc -> Generato da setup.py (NECESSARIO)" -ForegroundColor Yellow
+    Write-Host ""
+}
 
 Write-Host ""
 Write-Host "[5/7] Copia script e documentazione..." -ForegroundColor Yellow

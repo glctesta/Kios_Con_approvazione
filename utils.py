@@ -81,16 +81,25 @@ def send_email(
             "9jHgFhSs7Vf+"
         )
 
-        sender.send_email(
-            to_email=', '.join(recipients),
-            subject=subject,
-            body=body,
-            is_html=is_html  # <-- passa il flag
-        )
-        logger.info("Email inviata con successo a %d destinatari", len(recipients))
-        print("email inviata")
+        # Invia email a OGNI destinatario (EmailSender.send_email accetta un singolo indirizzo)
+        sent_count = 0
+        for recipient in recipients:
+            try:
+                sender.send_email(
+                    to_email=recipient.strip(),
+                    subject=subject,
+                    body=body,
+                    is_html=is_html
+                )
+                sent_count += 1
+                logger.info(f"Email inviata a {recipient}")
+            except Exception as e:
+                logger.error(f"Errore invio email a {recipient}: {str(e)}")
+        
+        logger.info(f"Email inviata con successo a {sent_count}/{len(recipients)} destinatari")
+        print(f"Email inviata a {sent_count} destinatari")
     except Exception as e:
-        logger.error("Errore nell'invio dell'email: %s", str(e))
+        logger.error(f"Errore nell'invio dell'email: {str(e)}")
         raise
 
 
