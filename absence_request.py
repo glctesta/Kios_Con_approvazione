@@ -579,22 +579,55 @@ class AbsenceRequestManager:
             cursor.execute(query, (employee_hire_history_id,))
             rows = cursor.fetchall()
             
+            logger.debug(f"Dati grezzi ritornati dalla SP GetManager: {rows}")
+            
             emails = []
             for row in rows:
                 # Itera su tutti i campi della riga per estrarre tutte le email
                 for field in row:
                     # Verifica che il campo non sia NULL
                     if field is not None:
-                        # Converte in stringa se necessario e pulisce spazi
-                        email = field.strip() if isinstance(field, str) else str(field).strip()
+                        # Converte in stringa se necessario
+                        field_str = field.strip() if isinstance(field, str) else str(field).strip()
                         
-                        # Valida che sia un'email (contiene @) e non vuota
-                        if email and '@' in email:
-                            # Evita duplicati nella lista
-                            if email not in emails:
-                                emails.append(email)
+                        # Se il campo contiene più email separate da virgola o semicolon, divide
+                        if field_str:
+                            # Prova a dividere per virgola o semicolon
+                            if ',' in field_str or ';' in field_str:
+                                # Divide per virgola o semicolon
+                                separators = [',', ';']
+                                email_list = [field_str]
+                                for sep in separators:
+                                    new_list = []
+                                    for item in email_list:
+                                        if sep in item:
+                                            new_list.extend(item.split(sep))
+                                        else:
+                                            new_list.append(item)
+                                    email_list = new_list
+                                
+                                # Processa ogni email estratta
+                                for email_item in email_list:
+                                    email = email_item.strip()
+                                    # Valida che sia un'email (contiene @) e non vuota
+                                    if email and '@' in email:
+                                        # Evita duplicati nella lista
+                                        if email not in emails:
+                                            emails.append(email)
+                                            logger.debug(f"Email estratta (da separatori): {email}")
+                            else:
+                                # Email singola
+                                # Valida che sia un'email (contiene @) e non vuota
+                                if field_str and '@' in field_str:
+                                    # Evita duplicati nella lista
+                                    if field_str not in emails:
+                                        emails.append(field_str)
+                                        logger.debug(f"Email estratta (singola): {field_str}")
             
             logger.info(f"Email manager trovate: {emails}")
+            if not emails:
+                logger.warning(f"Nessuna email trovata per hire_history_id {employee_hire_history_id}")
+            
             return emails
             
         except Exception as e:
