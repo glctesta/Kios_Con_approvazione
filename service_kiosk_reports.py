@@ -531,6 +531,17 @@ class KioskReportsService:
             logger.error(f"Errore nella generazione del report mensile: {e}")
             raise
 
+    def check_and_send_monthly_report(self):
+        """
+        Controlla se è il primo del mese e invia il report
+        """
+        today = datetime.now()
+        if today.day == 1:
+            logger.info("Primo del mese rilevato - invio report mensile")
+            self.send_monthly_report()
+        else:
+            logger.debug(f"Oggi è il giorno {today.day} - nessun report da inviare")
+
     def run_service(self):
         """
         Avvia il servizio schedulato
@@ -539,14 +550,16 @@ class KioskReportsService:
         logger.info("KIOSK REPORTS SERVICE - AVVIO")
         logger.info("=" * 60)
 
-        # Schedula esecuzione ogni primo del mese alle 08:00
-        schedule.every().month.at("08:00").do(self.send_monthly_report)
+        # Schedula controllo giornaliero alle 08:00
+        # Il report viene inviato solo il primo giorno del mese
+        schedule.every().day.at("08:00").do(self.check_and_send_monthly_report)
 
         # Per test: esegui subito (commentare in produzione)
         # logger.info("Esecuzione test immediata...")
         # self.send_monthly_report()
 
-        logger.info("Servizio schedulato: ogni 1° del mese alle 08:00")
+        logger.info("Servizio schedulato: controllo giornaliero alle 08:00")
+        logger.info("Report inviato automaticamente il 1° di ogni mese")
         logger.info("In attesa del prossimo ciclo...")
 
         # Loop principale
