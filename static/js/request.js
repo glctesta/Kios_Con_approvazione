@@ -101,11 +101,14 @@ function populateRequestTypes() {
     });
 }
 
-function setMinDate() {
-    // Imposta data minima a domani
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const minDate = tomorrow.toISOString().split('T')[0];
+function setMinDate(dayNoZone) {
+    // Imposta data minima basata su DayNoZone (0 = oggi, 1 = domani, ecc.)
+    if (dayNoZone === undefined || dayNoZone === null) {
+        dayNoZone = 1; // default: domani
+    }
+    const minDateObj = new Date();
+    minDateObj.setDate(minDateObj.getDate() + dayNoZone);
+    const minDate = minDateObj.toISOString().split('T')[0];
 
     elements.dateStart.min = minDate;
     elements.dateEnd.min = minDate;
@@ -287,6 +290,12 @@ function handleRequestTypeChange(e) {
     }
 
     state.selectedRequestType = requestTypeId;
+
+    // Aggiorna data minima in base a DayNoZone del tipo selezionato
+    const selectedType = state.requestTypes.find(t => t.id === requestTypeId);
+    if (selectedType) {
+        setMinDate(selectedType.day_no_zone);
+    }
 
     // Mostra giorni disponibili solo per ferie (IDRequestType = 1)
     if (requestTypeId === config.vacationRequestTypeId) {

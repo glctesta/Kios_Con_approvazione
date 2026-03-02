@@ -1,19 +1,19 @@
 # ========================================
 # KIOSK HR - Creazione Pacchetto Deploy
-# Versione: 2.2.0
-# Data: 2026-01-03
+# Versione: 2.3.3
+# Data: 2026-03-02
 # ========================================
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  KIOSK HR - Creazione Pacchetto" -ForegroundColor Cyan
-Write-Host "  Versione 2.2.0" -ForegroundColor Cyan
+Write-Host "  Versione 2.3.3" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Imposta nome pacchetto con timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$packageName = "Kiosk_HR_v2.2.0_$timestamp.zip"
+$packageName = "Kiosk_HR_v2.3.3_$timestamp.zip"
 
 Write-Host "[1/7] Preparazione directory temporanea..." -ForegroundColor Yellow
 if (Test-Path "deploy_temp") {
@@ -34,16 +34,18 @@ $pythonFiles = @(
     "db_connection.py",
     "digital_signature.py",
     "email_connector.py",
+    "kiosk_request_logger.py",
+    "offline_logger.py",
+    "pdf_digital_signer.py",
     "pdf_printer.py",
     "printer_keepalive.py",
     "rfid_reader.py",
+    "service_kiosk_reports.py",
+    "service_wrapper.py",
     "setup.py",
     "update_signature.py",
     "utils.py",
     "windows_cert_signer.py",
-    "kiosk_request_logger.py",
-    "offline_logger.py",
-    "service_kiosk_reports.py",
     "requirements.txt"
 )
 
@@ -52,7 +54,8 @@ foreach ($file in $pythonFiles) {
     if (Test-Path $file) {
         Copy-Item $file "deploy_temp\" -Force
         $copiedPython++
-    } else {
+    }
+    else {
         Write-Host "  [ATTENZIONE] File mancante: $file" -ForegroundColor Yellow
     }
 }
@@ -89,7 +92,8 @@ foreach ($file in $resourceFiles) {
     if (Test-Path $file) {
         Copy-Item $file "deploy_temp\" -Force
         $copiedResources++
-    } else {
+    }
+    else {
         $missingResources += $file
     }
 }
@@ -117,6 +121,7 @@ $scriptFiles = @(
     "INSTALLA.bat",
     "START_APP.bat",
     "START_SISTEMA_KIOSK.bat",
+    "START_KIOSK_REPORTS_SERVICE.bat",
     "AGGIORNA_FIRMA.bat",
     "MOSTRA_IP_KIOSK.bat"
 )
@@ -132,6 +137,8 @@ $docFiles = @(
     "GUIDA_NEWS_SLIDESHOW.md",
     "CONFIGURAZIONE_RETE.md",
     "STAMPA_AUTOMATICA.md",
+    "RELEASE_NOTES_v2.3.3.md",
+    "RELEASE_NOTES_v2.2.1.md",
     "RELEASE_NOTES_v2.2.0.md",
     "RELEASE_NOTES_v2.1.1.md"
 )
@@ -159,7 +166,8 @@ if (Test-Path "Images") {
         $imagesCopied++
     }
     Write-Host "[OK] Immagini slideshow copiate ($imagesCopied immagini X* e S*)" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "[INFO] Directory Images non trovata" -ForegroundColor Yellow
 }
 
@@ -215,11 +223,13 @@ try {
         Write-Host ""
         Write-Host "========================================" -ForegroundColor Green
         
-    } else {
+    }
+    else {
         throw "File ZIP non creato"
     }
     
-} catch {
+}
+catch {
     Write-Host "[ERRORE] Impossibile creare pacchetto ZIP" -ForegroundColor Red
     Write-Host "Dettagli errore: $_" -ForegroundColor Red
     Write-Host ""

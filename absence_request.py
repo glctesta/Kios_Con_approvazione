@@ -14,6 +14,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.utils import ImageReader
 from utils import log_service_operation
+import pyodbc
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +42,17 @@ class AbsenceRequestManager:
             
             query = """
             SELECT 
-                IDRequestType,
-                RequestName,
-                IsConsideredEntireDay
-            FROM [Timeclocking].[dbo].[RequestType]
-            WHERE IDRequestType IN (1, 7, 10, 12)
-            ORDER BY RequestName
+                rt.IDRequestType,
+                rt.RequestName,
+                rt.IsConsideredEntireDay,
+                ISNULL(ar.DayNoZone, 1) AS DayNoZone
+            FROM [Timeclocking].[dbo].[RequestType] rt
+            LEFT JOIN [Employee].[dbo].[AbsenceRules] ar 
+                ON ar.IDRequestType = rt.IDRequestType 
+                AND ar.DayNoZone IS NOT NULL 
+                AND ar.DateOut IS NULL
+            WHERE rt.IDRequestType IN (1, 7, 10, 12)
+            ORDER BY rt.RequestName
             """
             
             cursor.execute(query)
@@ -57,7 +63,8 @@ class AbsenceRequestManager:
                 request_types.append({
                     'id': row[0],
                     'name': row[1],
-                    'entire_day': row[2]
+                    'entire_day': row[2],
+                    'day_no_zone': row[3] if row[3] is not None else 1
                 })
             
             return request_types
@@ -563,32 +570,37 @@ class AbsenceRequestManager:
         """Recupera email manager tramite stored procedure GetManager"""
         try:
             cursor = self.conn.cursor()
-            
-            # Crea e popola la table variable
-            # Nota: con pyodbc non possiamo usare direttamente table-valued parameters
-            # Dobbiamo usare un approccio alternativo
+            logger.info(f"[GET_MANAGER_EMAILS] Creazione table variable e chiamata SP Employee.dbo.GetManager per hire_history_id={employee_hire_history_id}")
             query = """
             DECLARE @Ids dbo.EmployeeIdTableType;
-            
             INSERT INTO @Ids VALUES (?);
-            
-            -- Esegui la SP
-            EXEC GetManager @Ids;
+            EXEC [Employee].[dbo].[GetManager] @Ids;
             """
-            
             cursor.execute(query, (employee_hire_history_id,))
-            rows = cursor.fetchall()
+            # Gestione robusta dei result set multipli
+            rows = None
+            while True:
+                try:
+                    rows = cursor.fetchall()
+                    break
+                except pyodbc.ProgrammingError:
+                    if not cursor.nextset():
+                        break
+            if rows is None:
+                rows = []
             
-            logger.debug(f"Dati grezzi ritornati dalla SP GetManager: {rows}")
+            logger.debug(f"[GET_MANAGER_EMAILS] Dati grezzi ritornati dalla SP GetManager per hire_history_id={employee_hire_history_id}: {rows}")
             
             emails = []
-            for row in rows:
+            for row_idx, row in enumerate(rows):
+                logger.debug(f"[GET_MANAGER_EMAILS] Riga {row_idx}: tipo={type(row)}, contenuto={row}")
                 # Itera su tutti i campi della riga per estrarre tutte le email
-                for field in row:
+                for field_idx, field in enumerate(row):
                     # Verifica che il campo non sia NULL
                     if field is not None:
                         # Converte in stringa se necessario
                         field_str = field.strip() if isinstance(field, str) else str(field).strip()
+                        logger.debug(f"[GET_MANAGER_EMAILS] Campo [{field_idx}]: '{field_str}'")
                         
                         # Se il campo contiene più email separate da virgola o semicolon, divide
                         if field_str:
@@ -614,7 +626,7 @@ class AbsenceRequestManager:
                                         # Evita duplicati nella lista
                                         if email not in emails:
                                             emails.append(email)
-                                            logger.debug(f"Email estratta (da separatori): {email}")
+                                            logger.debug(f"[GET_MANAGER_EMAILS] Email estratta (da separatori): {email}")
                             else:
                                 # Email singola
                                 # Valida che sia un'email (contiene @) e non vuota
@@ -622,16 +634,16 @@ class AbsenceRequestManager:
                                     # Evita duplicati nella lista
                                     if field_str not in emails:
                                         emails.append(field_str)
-                                        logger.debug(f"Email estratta (singola): {field_str}")
+                                        logger.debug(f"[GET_MANAGER_EMAILS] Email estratta (singola): {field_str}")
             
-            logger.info(f"Email manager trovate: {emails}")
+            logger.info(f"[GET_MANAGER_EMAILS] Email manager trovate (TOTALE {len(emails)}): {emails}")
             if not emails:
-                logger.warning(f"Nessuna email trovata per hire_history_id {employee_hire_history_id}")
+                logger.warning(f"[GET_MANAGER_EMAILS] Nessuna email trovata per hire_history_id {employee_hire_history_id}")
             
             return emails
             
         except Exception as e:
-            logger.error(f"Errore recupero email manager: {str(e)}")
+            logger.error(f"[GET_MANAGER_EMAILS] Errore recupero email manager: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             # In caso di errore, restituisci lista vuota invece di bloccare
