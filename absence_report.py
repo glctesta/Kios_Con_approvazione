@@ -263,6 +263,7 @@ GiorniAssenzeEspansi AS (
         END AS IsGiornoLavorativo
     FROM 
         [Timeclocking].[dbo].[EmployeeRequestEntireDay] D
+        INNER JOIN [Timeclocking].[dbo].[Employee] TE2 ON D.IDEmployee = TE2.IDEmployee AND TE2.DataStop IS NULL AND D.DateFrom >= TE2.DataStart
         CROSS JOIN Numbers N
     WHERE 
         DATEADD(DAY, N.n, D.DateFrom) <= D.DateTo
@@ -310,6 +311,7 @@ GiorniMedicalEspansi AS (
         DATEADD(DAY, N.n, M.FromData) AS DataCorrente
     FROM 
         [Timeclocking].[dbo].[EmployeeRequestEntireDay] D
+        INNER JOIN [Timeclocking].[dbo].[Employee] TE2 ON D.IDEmployee = TE2.IDEmployee AND TE2.DataStop IS NULL AND D.DateFrom >= TE2.DataStart
         INNER JOIN [Timeclocking].[dbo].[MedicalRequest] M 
             ON D.IDEmployeeRequestEntireDay = M.IDEmployeeRequestEntireDay
         CROSS JOIN Numbers N

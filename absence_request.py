@@ -1,4 +1,4 @@
-﻿"""
+"""
 Modulo Richiesta Assenza
 Gestisce le richieste di assenza (ferie, permessi, ecc.)
 """
@@ -274,6 +274,7 @@ class AbsenceRequestManager:
                     END AS IsGiornoLavorativo
                 FROM 
                     [Timeclocking].[dbo].[EmployeeRequestEntireDay] D
+                    INNER JOIN [Timeclocking].[dbo].[Employee] TE2 ON D.IDEmployee = TE2.IDEmployee AND TE2.DataStop IS NULL AND D.DateFrom >= TE2.DataStart
                     CROSS JOIN Numbers N
                 WHERE 
                     DATEADD(DAY, N.n, D.DateFrom) <= D.DateTo
