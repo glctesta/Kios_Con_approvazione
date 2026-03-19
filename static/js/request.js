@@ -108,10 +108,24 @@ function setMinDate(dayNoZone) {
     }
     const minDateObj = new Date();
     minDateObj.setDate(minDateObj.getDate() + dayNoZone);
-    const minDate = minDateObj.toISOString().split('T')[0];
+    // Usa formato locale YYYY-MM-DD per evitare problemi timezone con toISOString()
+    const year = minDateObj.getFullYear();
+    const month = String(minDateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(minDateObj.getDate()).padStart(2, '0');
+    const minDate = `${year}-${month}-${day}`;
 
     elements.dateStart.min = minDate;
     elements.dateEnd.min = minDate;
+
+    // Se le date già selezionate sono prima del nuovo minimo, resettale
+    if (elements.dateStart.value && elements.dateStart.value < minDate) {
+        elements.dateStart.value = '';
+        state.dateStart = null;
+    }
+    if (elements.dateEnd.value && elements.dateEnd.value < minDate) {
+        elements.dateEnd.value = '';
+        state.dateEnd = null;
+    }
 }
 
 // ========================================
@@ -246,19 +260,19 @@ function updateBadgeStatus(status) {
 
     switch (status) {
         case 'waiting':
-            statusIcon.textContent = '📱';
-            statusText.textContent = 'În așteptare...';
+            statusIcon.textContent = '\uD83D\uDCF1';
+            statusText.textContent = '\u00CEn a\u0219teptare...';
             break;
         case 'reading':
-            statusIcon.textContent = '🔄';
+            statusIcon.textContent = '\uD83D\uDD04';
             statusText.textContent = 'Citire...';
             break;
         case 'success':
-            statusIcon.textContent = '✅';
+            statusIcon.textContent = '\u2705';
             statusText.textContent = 'Valid';
             break;
         case 'error':
-            statusIcon.textContent = '❌';
+            statusIcon.textContent = '\u274C';
             statusText.textContent = 'Invalid';
             break;
     }
@@ -294,6 +308,16 @@ function handleRequestTypeChange(e) {
     // Aggiorna data minima in base a DayNoZone del tipo selezionato
     const selectedType = state.requestTypes.find(t => t.id === requestTypeId);
     if (selectedType) {
+        // Resetta le date quando cambia il tipo di richiesta
+        // in modo che il calendario rifletta il nuovo minimo
+        elements.dateStart.value = '';
+        elements.dateEnd.value = '';
+        state.dateStart = null;
+        state.dateEnd = null;
+        state.workingDays = 0;
+        elements.workingDaysInfo.style.display = 'none';
+        elements.submitBtn.disabled = true;
+
         setMinDate(selectedType.day_no_zone);
     }
 
@@ -303,18 +327,18 @@ function handleRequestTypeChange(e) {
         elements.availableDaysInfo.style.display = 'block';
 
         if (state.availableDays <= 0) {
-            showToast('Nu aveți zile de concediu disponibile!', 'warning');
+            showToast('Nu ave\u021bi zile de concediu disponibile!', 'warning');
         }
     } else {
         elements.availableDaysInfo.style.display = 'none';
     }
 
-    // Gestisci visibilit� campi orari
+    // Gestisci visibilit\u00e0 campi orari
     if (window.timeFieldsManagement) {
         window.timeFieldsManagement.handleTimeFieldsVisibility(requestTypeId);
     }
 
-    // Ricalcola giorni lavorativi se date già selezionate
+    // Ricalcola giorni lavorativi se date gi\u00e0 selezionate
     if (state.dateStart && state.dateEnd) {
         calculateWorkingDays();
     }
@@ -332,7 +356,7 @@ async function handleDateChange() {
 
     // Verifica che data fine >= data inizio
     if (new Date(endDate) < new Date(startDate)) {
-        showToast('Data sfârșit trebuie să fie după data început', 'warning');
+        showToast('Data sf\u00e2r\u0219it trebuie s\u0103 fie dup\u0103 data \u00eenceput', 'warning');
         elements.dateEnd.value = '';
         elements.workingDaysInfo.style.display = 'none';
         elements.submitBtn.disabled = true;
@@ -358,7 +382,7 @@ async function calculateWorkingDays() {
     }
 
     try {
-        showLoading('Calcul zile lucrătoare...');
+        showLoading('Calcul zile lucr\u0103toare...');
 
         const response = await fetch('/api/calculate-working-days', {
             method: 'POST',
@@ -383,17 +407,17 @@ async function calculateWorkingDays() {
             // Mostra info giorni lavorativi
             elements.workingDaysInfo.style.display = 'block';
 
-            // Verifica disponibilità per ferie
+            // Verifica disponibilit\u00e0 per ferie
             if (state.selectedRequestType === config.vacationRequestTypeId) {
                 if (state.workingDays > state.availableDays) {
                     elements.workingDaysHelper.textContent =
-                        `⚠️ Aveți doar ${state.availableDays} zile disponibile!`;
+                        `\u26A0\uFE0F Ave\u021bi doar ${state.availableDays} zile disponibile!`;
                     elements.workingDaysHelper.style.color = '#ef4444';
                     elements.submitBtn.disabled = true;
                     showToast(`Zile solicitate (${state.workingDays}) > Zile disponibile (${state.availableDays})`, 'error');
                 } else {
                     elements.workingDaysHelper.textContent =
-                        `✓ Zile disponibile după cerere: ${state.availableDays - state.workingDays}`;
+                        `\u2713 Zile disponibile dup\u0103 cerere: ${state.availableDays - state.workingDays}`;
                     elements.workingDaysHelper.style.color = '#10b981';
                     elements.submitBtn.disabled = false;
                 }
@@ -420,11 +444,11 @@ async function handleFormSubmit(e) {
     if (window.timeFieldsManagement && window.timeFieldsManagement.isPartialAbsence()) {
         // Validazioni minime per assenze orarie
         if (!state.selectedEmployee) {
-            showToast('Scana?i badge-ul', 'warning');
+            showToast('Scana\u021bi badge-ul', 'warning');
             return;
         }
         if (!state.selectedRequestType) {
-            showToast('Selecta?i tipul de absen?a', 'warning');
+            showToast('Selecta\u021bi tipul de absen\u021b\u0103', 'warning');
             return;
         }
         
@@ -438,7 +462,7 @@ async function handleFormSubmit(e) {
             return;
         }
         
-        // Se state � popolato, vai direttamente a submit
+        // Se state \u00e8 popolato, vai direttamente a submit
         if (window.state && window.state.dateStart && window.state.dateEnd) {
             console.log(' Assenza parziale validata - submit diretto');
             await submitRequest();
@@ -448,29 +472,29 @@ async function handleFormSubmit(e) {
 
     // Validazioni finali
     if (!state.selectedEmployee) {
-        showToast('Scanați badge-ul', 'warning');
+        showToast('Scana\u021bi badge-ul', 'warning');
         return;
     }
 
     if (!state.selectedRequestType) {
-        showToast('Selectați tipul de absență', 'warning');
+        showToast('Selecta\u021bi tipul de absen\u021b\u0103', 'warning');
         return;
     }
 
     if (!state.dateStart || !state.dateEnd) {
-        showToast('Selectați perioada', 'warning');
+        showToast('Selecta\u021bi perioada', 'warning');
         return;
     }
 
     if (state.workingDays <= 0) {
-        showToast('Perioada selectată nu conține zile lucrătoare', 'warning');
+        showToast('Perioada selectat\u0103 nu con\u021bine zile lucr\u0103toare', 'warning');
         return;
     }
 
     // Verifica giorni disponibili per ferie
     if (state.selectedRequestType === config.vacationRequestTypeId) {
         if (state.workingDays > state.availableDays) {
-            showToast('Nu aveți suficiente zile de concediu disponibile', 'error');
+            showToast('Nu ave\u021bi suficiente zile de concediu disponibile', 'error');
             return;
         }
     }
@@ -505,11 +529,11 @@ async function submitRequest() {
         if (data.success) {
             state.currentPdfPath = data.pdf_path;
             showResult(data);
-            showToast('Cerere înregistrată cu succes!', 'success');
+            showToast('Cerere \u00eenregistrat\u0103 cu succes!', 'success');
 
             // Auto-print
             if (data.print_success) {
-                showToast(`Trimis la imprimantă: ${data.printer_name}`, 'success');
+                showToast(`Trimis la imprimant\u0103: ${data.printer_name}`, 'success');
             }
 
             // Auto-reset
@@ -564,7 +588,7 @@ async function handlePrint() {
         const data = await response.json();
 
         if (data.success) {
-            showToast(`Trimis la imprimantă: ${data.printer_name}`, 'success');
+            showToast(`Trimis la imprimant\u0103: ${data.printer_name}`, 'success');
         } else {
             showToast('Errore stampa', 'error');
         }
@@ -614,7 +638,7 @@ function startAutoReset() {
     }
 
     state.autoResetTimeout = setTimeout(() => {
-        showToast('Revenire automată la ecranul inițial...', 'warning');
+        showToast('Revenire automat\u0103 la ecranul ini\u021bial...', 'warning');
         setTimeout(() => {
             resetToKioskMode();
         }, 3000);
@@ -634,7 +658,7 @@ function resetToKioskMode() {
 // ========================================
 // UI HELPERS
 // ========================================
-function showLoading(message = 'Încărcare...') {
+function showLoading(message = '\u00CEnc\u0103rcare...') {
     elements.loadingOverlay.querySelector('.loading-text').textContent = message;
     elements.loadingOverlay.style.display = 'flex';
 }
@@ -649,13 +673,13 @@ function showToast(message, type = 'info') {
 
     const icon = document.createElement('span');
     icon.className = 'toast-icon';
-    icon.textContent = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+    icon.textContent = type === 'success' ? '\u2705' : type === 'error' ? '\u274C' : type === 'warning' ? '\u26A0\uFE0F' : '\u2139\uFE0F';
 
     const messageSpan = document.createElement('span');
     messageSpan.className = 'toast-message';
     messageSpan.textContent = message;
 
-    // Per messaggi lunghi, permetti al testo di andare su più righe
+    // Per messaggi lunghi, permetti al testo di andare su pi\u00f9 righe
     if (message.length > 100) {
         messageSpan.style.whiteSpace = 'pre-wrap';
         messageSpan.style.maxWidth = '500px';
@@ -668,7 +692,7 @@ function showToast(message, type = 'info') {
 
     elements.toastContainer.appendChild(toast);
 
-    // Timeout più lungo per messaggi di errore lunghi
+    // Timeout pi\u00f9 lungo per messaggi di errore lunghi
     let timeout = 4000; // 4 secondi di default
     if (type === 'error' && message.length > 100) {
         timeout = 10000; // 10 secondi per errori lunghi

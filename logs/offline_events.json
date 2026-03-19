@@ -286,5 +286,61 @@
     "duration_seconds": 0.59,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
     "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-28T09:06:08.783Z",
+    "local_timestamp": "2026-01-28T11:06:08.815505",
+    "duration_seconds": 43.069,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-28T09:49:01.340Z",
+    "local_timestamp": "2026-01-28T11:49:01.392486",
+    "duration_seconds": 377.28,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-28T09:51:31.235Z",
+    "local_timestamp": "2026-01-28T11:51:31.556840",
+    "duration_seconds": 41.648,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-01-28T09:58:06.989Z",
+    "local_timestamp": "2026-01-28T11:58:06.999128",
+    "duration_seconds": 326.3,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-03-12T13:16:41.770Z",
+    "local_timestamp": "2026-03-12T15:16:41.904144",
+    "duration_seconds": 57.992,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-03-12T13:20:59.398Z",
+    "local_timestamp": "2026-03-12T15:20:59.399920",
+    "duration_seconds": 30.745,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "page": "/"
+  },
+  {
+    "event_type": "end",
+    "timestamp": "2026-03-12T13:21:41.785Z",
+    "local_timestamp": "2026-03-12T15:21:42.051577",
+    "duration_seconds": 58.022,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+    "page": "/"
   }
 ]

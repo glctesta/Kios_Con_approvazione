@@ -56,7 +56,7 @@ class KioskRequestLogger:
 
             query = """
             SELECT e.EmployeeSurname + ' ' + e.EmployeeName AS EmployeeName 
-            FROM tbuserkey U 
+            FROM ResetServices.dbo.tbuserkey U 
             INNER JOIN employee.dbo.employees e 
                 ON e.employeeid = u.idanga 
             INNER JOIN employee.dbo.EmployeeHireHistory H 

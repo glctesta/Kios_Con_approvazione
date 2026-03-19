@@ -857,15 +857,17 @@ def submit_absence_request():
         
         # Invia email notifica ai manager
         try:
-            logger.info("Recupero email manager...")
+            logger.info("[SUBMIT_ABSENCE] Recupero email manager...")
             manager_emails = request_manager.get_manager_emails(hire_history_id)
+            
+            logger.info(f"[SUBMIT_ABSENCE] Email manager recuperate - tipo: {type(manager_emails)}, numero: {len(manager_emails)}, contenuto: {manager_emails}")
             
             # Se non ci sono manager, usa email fallback
             if not manager_emails:
-                logger.warning(f"Nessun manager trovato per hire_history_id {hire_history_id}, uso email fallback")
+                logger.warning(f"[SUBMIT_ABSENCE] Nessun manager trovato per hire_history_id {hire_history_id}, uso email fallback")
                 manager_emails = ['gianluca.testa@vandewiele.com']
             
-            logger.info(f"Invio email a: {manager_emails}")
+            logger.info(f"[SUBMIT_ABSENCE] Invio email a: {manager_emails} (numero: {len(manager_emails)})")
             
             # Prepara email HTML
             subject = f"Nouă cerere de absență - {registry_info['doc_name']}"
@@ -925,6 +927,7 @@ def submit_absence_request():
             """
             
             # Invia email usando utils.send_email
+            logger.info(f"[SUBMIT_ABSENCE] Chiamo send_email con {len(manager_emails)} destinatari")
             send_email(
                 recipients=manager_emails,
                 subject=subject,
@@ -932,11 +935,11 @@ def submit_absence_request():
                 is_html=True
             )
             
-            logger.info("Email notifica inviata con successo")
+            logger.info("[SUBMIT_ABSENCE] Email notifica inviata con successo")
                 
         except Exception as email_error:
             # Non bloccare la richiesta se l'email fallisce
-            logger.error(f"Errore invio email notifica: {str(email_error)}")
+            logger.error(f"[SUBMIT_ABSENCE] Errore invio email notifica: {str(email_error)}")
             import traceback
             logger.error(traceback.format_exc())
         

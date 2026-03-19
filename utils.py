@@ -68,9 +68,16 @@ def send_email(
     Note: Usa EmailSender già presente nel progetto.
     :param timeout:
     """
+    # Assicurati che recipients sia sempre una lista
+    if isinstance(recipients, str):
+        logger.warning(f"Recipients è una stringa, converto a lista: {recipients}")
+        recipients = [recipients]
+    
     if not recipients:
         logger.error("Nessun destinatario specificato per l'email")
         return
+
+    logger.info(f"[SEND_EMAIL DEBUG] Tipo recipients: {type(recipients)}, Numero destinatari: {len(recipients)}, Contenuto: {recipients}")
 
     try:
         sender = EmailSender(smtp_host, smtp_port)
@@ -81,25 +88,19 @@ def send_email(
             "9jHgFhSs7Vf+"
         )
 
-        # Invia email a OGNI destinatario (EmailSender.send_email accetta un singolo indirizzo)
-        sent_count = 0
-        for recipient in recipients:
-            try:
-                sender.send_email(
-                    to_email=recipient.strip(),
-                    subject=subject,
-                    body=body,
-                    is_html=is_html
-                )
-                sent_count += 1
-                logger.info(f"Email inviata a {recipient}")
-            except Exception as e:
-                logger.error(f"Errore invio email a {recipient}: {str(e)}")
-        
-        logger.info(f"Email inviata con successo a {sent_count}/{len(recipients)} destinatari")
-        print(f"Email inviata a {sent_count} destinatari")
+        # Unica email a tutti i destinatari (To)
+        all_recipients = [r.strip() for r in recipients if r and '@' in r]
+        logger.info(f"[SEND_EMAIL] Invio unica email a: {all_recipients}")
+        sender.send_email(
+            to_email=", ".join(all_recipients),
+            subject=subject,
+            body=body,
+            is_html=is_html
+        )
+        logger.info(f"[SEND_EMAIL] ✓ Email inviata a tutti i destinatari")
+        print(f"Email inviata a {len(all_recipients)} destinatari")
     except Exception as e:
-        logger.error(f"Errore nell'invio dell'email: {str(e)}")
+        logger.error(f"[SEND_EMAIL ERROR] Errore nell'invio dell'email: {str(e)}")
         raise
 
 
