@@ -42,6 +42,29 @@
                             <span class="status-text">În așteptare...</span>
                         </span>
                     </div>
+                    <p class="badge-fallback-note">
+                        ⚠️ Dacă cititorul de badge nu funcționează, atingeți ecranul în câmpul BADGE și introduceți numărul manual folosind tastatura numerică.
+                    </p>
+                    <!-- Tastierino numerico (visibile quando il campo badge è in focus) -->
+                    <div id="numericKeypad" class="numeric-keypad" style="display: none;">
+                        <div class="keypad-header">
+                            <span class="keypad-title">Introduceți numărul badge-ului</span>
+                        </div>
+                        <div class="keypad-grid">
+                            <button type="button" class="keypad-btn" data-key="1">1</button>
+                            <button type="button" class="keypad-btn" data-key="2">2</button>
+                            <button type="button" class="keypad-btn" data-key="3">3</button>
+                            <button type="button" class="keypad-btn" data-key="4">4</button>
+                            <button type="button" class="keypad-btn" data-key="5">5</button>
+                            <button type="button" class="keypad-btn" data-key="6">6</button>
+                            <button type="button" class="keypad-btn" data-key="7">7</button>
+                            <button type="button" class="keypad-btn" data-key="8">8</button>
+                            <button type="button" class="keypad-btn" data-key="9">9</button>
+                            <button type="button" class="keypad-btn keypad-clear" data-key="clear">C</button>
+                            <button type="button" class="keypad-btn" data-key="0">0</button>
+                            <button type="button" class="keypad-btn keypad-back" data-key="back">⌫</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Employee Info (Hidden until badge is read) -->

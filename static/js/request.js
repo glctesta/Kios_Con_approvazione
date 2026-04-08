@@ -17,7 +17,8 @@ const state = {
     currentPdfPath: null,
     badgeReadTimeout: null,
     autoResetTimeout: null,
-    isProcessing: false
+    isProcessing: false,
+    keypadMode: false  // true quando l'utente sta usando il tastierino manuale
 };
 
 // Rendi state globale per time-fields.js
@@ -27,7 +28,8 @@ window.state = state;
 // CONFIGURATION
 // ========================================
 const config = {
-    badgeReadDelay: 500,
+    badgeReadDelay: 500,      // Delay per RFID (lettura rapida da scanner)
+    badgeReadDelayKeypad: 2500, // Delay più lungo per inserimento manuale via tastierino
     autoResetDelay: 30000,
     vacationRequestTypeId: 1  // IDRequestType per ferie
 };
@@ -38,6 +40,7 @@ const config = {
 const elements = {
     badgeInput: document.getElementById('badgeInput'),
     badgeStatus: document.getElementById('badgeStatus'),
+    numericKeypad: document.getElementById('numericKeypad'),
     employeeInfo: document.getElementById('employeeInfo'),
     employeeName: document.getElementById('employeeName'),
     availableDaysInfo: document.getElementById('availableDaysInfo'),
@@ -135,6 +138,16 @@ function attachEventListeners() {
     // Badge input
     elements.badgeInput.addEventListener('input', handleBadgeInput);
 
+    // Mostra tastierino quando il campo badge riceve focus
+    elements.badgeInput.addEventListener('focus', showKeypad);
+
+    // Tastierino numerico
+    if (elements.numericKeypad) {
+        elements.numericKeypad.addEventListener('click', handleKeypadClick);
+        // Previeni la perdita di focus al click sul tastierino
+        elements.numericKeypad.addEventListener('mousedown', (e) => e.preventDefault());
+    }
+
     // Request type change
     elements.requestType.addEventListener('change', handleRequestTypeChange);
 
@@ -173,9 +186,49 @@ function handleBadgeInput(e) {
 
     updateBadgeStatus('reading');
 
+    // Usa delay più lungo se l'utente sta inserendo manualmente col tastierino
+    const delay = state.keypadMode ? config.badgeReadDelayKeypad : config.badgeReadDelay;
+
     state.badgeReadTimeout = setTimeout(() => {
         validateBadge(badgeNumber);
-    }, config.badgeReadDelay);
+    }, delay);
+}
+
+// ========================================
+// TASTIERINO NUMERICO
+// ========================================
+function showKeypad() {
+    if (elements.numericKeypad) {
+        elements.numericKeypad.style.display = 'block';
+    }
+}
+
+function hideKeypad() {
+    if (elements.numericKeypad) {
+        elements.numericKeypad.style.display = 'none';
+    }
+    state.keypadMode = false;
+}
+
+function handleKeypadClick(e) {
+    const btn = e.target.closest('.keypad-btn');
+    if (!btn) return;
+
+    const key = btn.dataset.key;
+    // Attiva modalità tastierino: delay più lungo per dare tempo di inserire le cifre
+    state.keypadMode = true;
+
+    if (key === 'clear') {
+        elements.badgeInput.value = '';
+    } else if (key === 'back') {
+        elements.badgeInput.value = elements.badgeInput.value.slice(0, -1);
+    } else {
+        elements.badgeInput.value += key;
+    }
+
+    // Dispatcha evento input per riusare la logica di handleBadgeInput
+    elements.badgeInput.dispatchEvent(new Event('input', { bubbles: true }));
+    elements.badgeInput.focus();
 }
 
 async function validateBadge(badgeNumber) {
@@ -197,6 +250,7 @@ async function validateBadge(badgeNumber) {
             updateBadgeStatus('success');
             showEmployeeInfo(data.employee);
             enableForm();
+            hideKeypad();
             showToast(`Bun venit, ${data.employee.name}!`, 'success');
 
             // Carica giorni disponibili per anno corrente
@@ -622,12 +676,16 @@ function resetForm() {
     updateBadgeStatus('waiting');
     disableForm();
 
+    state.keypadMode = false;
+    showKeypad();
     elements.badgeInput.focus();
 }
 
 function resetBadgeInput() {
     elements.badgeInput.value = '';
     elements.badgeInput.disabled = false;
+    state.keypadMode = false;
+    showKeypad();
     elements.badgeInput.focus();
     updateBadgeStatus('waiting');
 }

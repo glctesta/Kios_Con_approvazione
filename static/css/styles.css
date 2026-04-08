@@ -1018,6 +1018,96 @@ body {
 /* ========================================
    PRINT STYLES
    ======================================== */
+/* ========================================
+   BADGE FALLBACK NOTE
+   ======================================== */
+.badge-fallback-note {
+    margin: 0.75rem 0 0 0;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+    color: #856404;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 6px;
+    line-height: 1.4;
+}
+
+/* ========================================
+   NUMERIC KEYPAD (Badge Input)
+   ======================================== */
+.numeric-keypad {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    max-width: 420px;
+}
+
+.keypad-header {
+    text-align: center;
+    margin-bottom: 0.75rem;
+}
+
+.keypad-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.6rem;
+}
+
+.keypad-btn {
+    padding: 1.1rem 0;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: #212529;
+    background: #ffffff;
+    border: 2px solid #ced4da;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.keypad-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.keypad-btn:active {
+    transform: scale(0.95);
+    background: #dee2e6;
+}
+
+.keypad-btn.keypad-clear {
+    color: #ffffff;
+    background: #dc3545;
+    border-color: #dc3545;
+}
+
+.keypad-btn.keypad-clear:hover {
+    background: #c82333;
+    border-color: #bd2130;
+}
+
+.keypad-btn.keypad-back {
+    color: #ffffff;
+    background: #6c757d;
+    border-color: #6c757d;
+}
+
+.keypad-btn.keypad-back:hover {
+    background: #5a6268;
+    border-color: #545b62;
+}
+
 @media print {
     body {
         background: white;
