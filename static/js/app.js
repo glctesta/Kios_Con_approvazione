@@ -12,8 +12,11 @@ const state = {
     selectedEmployee: null,
     selectedReason: null,
     currentPdfPath: null,
+    currentPdfFilename: null,
     badgeReadTimeout: null,
     autoResetTimeout: null,
+    printCountdownInterval: null,
+    printCountdownTimeout: null,
     isProcessing: false
 };
 
@@ -23,7 +26,8 @@ const state = {
 const config = {
     badgeReadDelay: 500,        // ms dopo input badge prima di validare
     autoResetDelay: 30000,      // ms prima di auto-reset dopo stampa (30 secondi)
-    showResultDuration: 10000   // ms per mostrare risultato prima di tornare a badge
+    showResultDuration: 10000,  // ms per mostrare risultato prima di tornare a badge
+    printButtonTimeout: 15000   // ms prima che il bottone stampa sparisca e il PDF venga eliminato
 };
 
 // ========================================
@@ -257,7 +261,7 @@ function setupEventListeners() {
     elements.cancelReasonBtn.addEventListener('click', closeAddReasonModal);
     elements.saveReasonBtn.addEventListener('click', saveNewReason);
 
-    // Result actions
+    // Result actions — bottone stampa: stampa client-side (kiosk silenzioso, remoto con dialog)
     elements.printBtn.addEventListener('click', printCertificate);
     elements.newCertBtn.addEventListener('click', resetToKioskMode);
 
@@ -351,6 +355,7 @@ async function generateCertificate() {
 
         if (data.success) {
             state.currentPdfPath = data.pdfPath;
+            state.currentPdfFilename = extractFilename(data.pdfPath);
             showResult(data);
             showToast('Adeverință generată cu succes!', 'success');
         } else {
@@ -425,17 +430,11 @@ function showResult(data) {
     elements.docNumber.textContent = data.documentNumber;
     elements.docDate.textContent = data.documentDate;
 
-    // Mostra stato stampa se disponibile
-    if (data.printed !== undefined) {
-        const printStatus = data.printed
-            ? `✅ Stampato su: ${data.printerName}`
-            : '⚠️ Stampa non riuscita - PDF salvato in temp/';
-
-        showToast(printStatus, data.printed ? 'success' : 'warning');
-    }
-
     elements.certificateForm.style.display = 'none';
     elements.resultSection.style.display = 'block';
+
+    // Avvia countdown 15s sul bottone stampa
+    startPrintCountdown();
 
     // Auto-reset dopo configurato delay (default 30 secondi)
     state.autoResetTimeout = setTimeout(() => {
@@ -447,17 +446,107 @@ function showResult(data) {
 }
 
 // ========================================
-// PRINT CERTIFICATE
+// PRINT CERTIFICATE (countdown + stampa client-side)
 // ========================================
+function extractFilename(path) {
+    if (!path) return null;
+    return path.replace(/\\/g, '/').split('/').pop();
+}
+
+function startPrintCountdown() {
+    const btn = elements.printBtn;
+    if (!btn) return;
+
+    const totalSeconds = Math.floor(config.printButtonTimeout / 1000);
+    let secondsLeft = totalSeconds;
+
+    btn.disabled = false;
+    btn.style.display = '';
+    renderPrintBtnLabel(secondsLeft);
+
+    clearPrintCountdown();
+    state.printCountdownInterval = setInterval(() => {
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+            clearPrintCountdown();
+            hidePrintBtn();
+            deleteCurrentPdf();
+        } else {
+            renderPrintBtnLabel(secondsLeft);
+        }
+    }, 1000);
+}
+
+function renderPrintBtnLabel(secondsLeft) {
+    elements.printBtn.innerHTML =
+        `<span class="btn-icon">🖨️</span> Printează (${secondsLeft})`;
+}
+
+function clearPrintCountdown() {
+    if (state.printCountdownInterval) {
+        clearInterval(state.printCountdownInterval);
+        state.printCountdownInterval = null;
+    }
+}
+
+function hidePrintBtn() {
+    if (elements.printBtn) {
+        elements.printBtn.style.display = 'none';
+    }
+}
+
+function deleteCurrentPdf() {
+    if (!state.currentPdfFilename) return;
+    const filename = state.currentPdfFilename;
+    state.currentPdfFilename = null;
+    state.currentPdfPath = null;
+    fetch(`/api/delete-pdf/${encodeURIComponent(filename)}`, { method: 'POST' })
+        .catch(err => console.warn('Errore eliminazione PDF temp:', err));
+}
+
 function printCertificate() {
-    if (!state.currentPdfPath) {
+    if (!state.currentPdfFilename) {
         showToast('Niciun PDF disponibil', 'error');
         return;
     }
 
-    // Estrai filename gestendo sia / che \ (Windows)
-    const filename = state.currentPdfPath.replace(/\\/g, '/').split('/').pop();
-    window.open(`/api/print-pdf/${filename}`, '_blank');
+    clearPrintCountdown();
+    const filename = state.currentPdfFilename;
+
+    // Stampa via iframe nascosto:
+    // - su kiosk Chrome con --kiosk-printing → stampa silenziosa
+    // - su browser normale → dialog di stampa standard
+    const oldIframe = document.getElementById('pdfPrintFrame');
+    if (oldIframe) oldIframe.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'pdfPrintFrame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.src = `/api/print-pdf/${encodeURIComponent(filename)}`;
+
+    iframe.onload = () => {
+        setTimeout(() => {
+            try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } catch (e) {
+                console.error('Errore stampa iframe, fallback a nuova finestra:', e);
+                window.open(`/api/print-pdf/${encodeURIComponent(filename)}`, '_blank');
+            }
+        }, 500);
+    };
+
+    document.body.appendChild(iframe);
+    showToast('Trimis la imprimantă...', 'success');
+
+    hidePrintBtn();
+    // Elimina PDF temp dopo un margine di tempo per dare alla stampante tempo di leggere
+    setTimeout(() => deleteCurrentPdf(), 20000);
 }
 
 // ========================================
@@ -475,6 +564,7 @@ function resetToKioskMode() {
         clearTimeout(state.autoResetTimeout);
         state.autoResetTimeout = null;
     }
+    clearPrintCountdown();
 
     // Redirect alla pagina launcher principale
     window.location.href = '/';

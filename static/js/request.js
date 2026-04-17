@@ -15,8 +15,10 @@ const state = {
     dateEnd: null,
     workingDays: 0,
     currentPdfPath: null,
+    currentPdfFilename: null,
     badgeReadTimeout: null,
     autoResetTimeout: null,
+    printCountdownInterval: null,
     isProcessing: false,
     keypadMode: false  // true quando l'utente sta usando il tastierino manuale
 };
@@ -31,7 +33,8 @@ const config = {
     badgeReadDelay: 500,      // Delay per RFID (lettura rapida da scanner)
     badgeReadDelayKeypad: 2500, // Delay più lungo per inserimento manuale via tastierino
     autoResetDelay: 30000,
-    vacationRequestTypeId: 1  // IDRequestType per ferie
+    vacationRequestTypeId: 1,  // IDRequestType per ferie
+    printButtonTimeout: 15000  // ms prima che il bottone stampa sparisca e il PDF venga eliminato
 };
 
 // ========================================
@@ -582,15 +585,12 @@ async function submitRequest() {
 
         if (data.success) {
             state.currentPdfPath = data.pdf_path;
+            state.currentPdfFilename = data.pdf_filename || extractFilename(data.pdf_path);
             showResult(data);
             showToast('Cerere \u00eenregistrat\u0103 cu succes!', 'success');
 
-            // Auto-print
-            if (data.print_success) {
-                showToast(`Trimis la imprimant\u0103: ${data.printer_name}`, 'success');
-            }
-
-            // Auto-reset
+            // Countdown 15s sul bottone stampa + auto-reset 30s
+            startPrintCountdown();
             startAutoReset();
         } else {
             showToast(data.error || 'Errore invio richiesta', 'error');
@@ -620,37 +620,104 @@ function showResult(data) {
 }
 
 // ========================================
-// PRINT HANDLING
+// PRINT HANDLING (client-side: kiosk silenzioso via --kiosk-printing,
+// remoto con dialog standard del browser)
 // ========================================
-async function handlePrint() {
-    if (!state.currentPdfPath) {
+function extractFilename(path) {
+    if (!path) return null;
+    return path.replace(/\\/g, '/').split('/').pop();
+}
+
+function startPrintCountdown() {
+    const btn = elements.printBtn;
+    if (!btn) return;
+
+    const totalSeconds = Math.floor(config.printButtonTimeout / 1000);
+    let secondsLeft = totalSeconds;
+
+    btn.disabled = false;
+    btn.style.display = '';
+    renderPrintBtnLabel(secondsLeft);
+
+    clearPrintCountdown();
+    state.printCountdownInterval = setInterval(() => {
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+            clearPrintCountdown();
+            hidePrintBtn();
+            deleteCurrentPdf();
+        } else {
+            renderPrintBtnLabel(secondsLeft);
+        }
+    }, 1000);
+}
+
+function renderPrintBtnLabel(secondsLeft) {
+    elements.printBtn.innerHTML =
+        `<span class="btn-icon">\uD83D\uDDA8\uFE0F</span> Printeaz\u0103 Confirmare (${secondsLeft})`;
+}
+
+function clearPrintCountdown() {
+    if (state.printCountdownInterval) {
+        clearInterval(state.printCountdownInterval);
+        state.printCountdownInterval = null;
+    }
+}
+
+function hidePrintBtn() {
+    if (elements.printBtn) {
+        elements.printBtn.style.display = 'none';
+    }
+}
+
+function deleteCurrentPdf() {
+    if (!state.currentPdfFilename) return;
+    const filename = state.currentPdfFilename;
+    state.currentPdfFilename = null;
+    state.currentPdfPath = null;
+    fetch(`/api/delete-pdf/${encodeURIComponent(filename)}`, { method: 'POST' })
+        .catch(err => console.warn('Errore eliminazione PDF temp:', err));
+}
+
+function handlePrint() {
+    if (!state.currentPdfFilename) {
         showToast('Nessun PDF da stampare', 'error');
         return;
     }
 
-    try {
-        const response = await fetch('/api/do-print', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                pdf_path: state.currentPdfPath
-            })
-        });
+    clearPrintCountdown();
+    const filename = state.currentPdfFilename;
 
-        const data = await response.json();
+    const oldIframe = document.getElementById('pdfPrintFrame');
+    if (oldIframe) oldIframe.remove();
 
-        if (data.success) {
-            showToast(`Trimis la imprimant\u0103: ${data.printer_name}`, 'success');
-        } else {
-            showToast('Errore stampa', 'error');
-        }
+    const iframe = document.createElement('iframe');
+    iframe.id = 'pdfPrintFrame';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.src = `/api/print-pdf/${encodeURIComponent(filename)}`;
 
-    } catch (error) {
-        console.error('Errore stampa:', error);
-        showToast('Errore di connessione', 'error');
-    }
+    iframe.onload = () => {
+        setTimeout(() => {
+            try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } catch (e) {
+                console.error('Errore stampa iframe, fallback a nuova finestra:', e);
+                window.open(`/api/print-pdf/${encodeURIComponent(filename)}`, '_blank');
+            }
+        }, 500);
+    };
+
+    document.body.appendChild(iframe);
+    showToast('Trimis la imprimant\u0103...', 'success');
+
+    hidePrintBtn();
+    setTimeout(() => deleteCurrentPdf(), 20000);
 }
 
 // ========================================
@@ -672,6 +739,8 @@ function resetForm() {
     state.dateEnd = null;
     state.workingDays = 0;
     state.currentPdfPath = null;
+    state.currentPdfFilename = null;
+    clearPrintCountdown();
 
     updateBadgeStatus('waiting');
     disableForm();
@@ -708,6 +777,7 @@ function resetToKioskMode() {
         clearTimeout(state.autoResetTimeout);
         state.autoResetTimeout = null;
     }
+    clearPrintCountdown();
 
     // Redirect alla home launcher
     window.location.href = '/';

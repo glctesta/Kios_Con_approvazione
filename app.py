@@ -412,26 +412,15 @@ def generate_certificate():
         
         if result['success']:
             pdf_path = result.get('pdf_path')
-            
+
             # Log richiesta kiosk
             if badge_number:
                 kiosk_logger.log_certificate_request(badge_number, reason, executed=True)
-            
-            # Stampa automatica PDF
-            print_success = False
-            printer_name = None
-            if pdf_path and os.path.exists(pdf_path):
-                try:
-                    printer_name = get_default_printer()
-                    logger.info(f"Tentativo stampa PDF su: {printer_name}")
-                    print_success = print_pdf_silent(pdf_path, printer_name)
-                    if print_success:
-                        logger.info(f"PDF inviato alla stampante: {printer_name}")
-                    else:
-                        logger.warning("Stampa PDF fallita, PDF salvato in temp/")
-                except Exception as print_error:
-                    logger.error(f"Errore stampa PDF: {str(print_error)}")
-            
+
+            # Stampa gestita lato client (tramite bottone Stampa e window.print()).
+            # Sul kiosk Chrome è lanciato con --kiosk-printing → stampa silenziosa.
+            # Sui PC remoti appare il dialog di stampa del browser del client.
+
             # Invia email se richiesto
             if result.get('email_required'):
                 try:
@@ -450,9 +439,7 @@ def generate_certificate():
                 'message': 'Certificato generato con successo',
                 'documentNumber': result['document_number'],
                 'documentDate': result['document_date'],
-                'pdfPath': result.get('pdf_path'),
-                'printed': print_success,
-                'printerName': printer_name
+                'pdfPath': result.get('pdf_path')
             })
         else:
             # Log fallimento
@@ -543,25 +530,18 @@ def generate_absence_report():
         
         # Log successo richiesta
         kiosk_logger.log_absence_report_request(badge_number, year, executed=True)
-        
-        # Stampa automatica
-        printer_name = get_default_printer()
-        print_success = False
-        
-        if printer_name:
-            print_success = print_pdf_silent(pdf_path, printer_name)
-            logger.info(f"Stampa report: {print_success}")
-        
+
+        # Stampa gestita lato client (vedi /api/generate-certificate).
+
         # Normalizza path per URL
         pdf_filename = os.path.basename(pdf_path)
         pdf_url = f"/api/print-pdf/{pdf_filename}"
-        
+
         return jsonify({
             'success': True,
             'pdf_path': pdf_path,
             'pdf_url': pdf_url,
-            'print_success': print_success,
-            'printer_name': printer_name or 'Nessuna stampante configurata'
+            'pdf_filename': pdf_filename
         })
         
     except Exception as e:
@@ -842,15 +822,9 @@ def submit_absence_request():
             return jsonify({'success': False, 'error': 'Errore generazione PDF'}), 500
         
         logger.info(f"PDF generato: {pdf_path}")
-        
-        # Stampa automatica
-        printer_name = get_default_printer()
-        print_success = False
-        
-        if printer_name:
-            print_success = print_pdf_silent(pdf_path, printer_name)
-            logger.info(f"Stampa: {print_success}")
-        
+
+        # Stampa gestita lato client (vedi /api/generate-certificate).
+
         # Normalizza path per URL
         pdf_filename = os.path.basename(pdf_path)
         pdf_url = f"/api/print-pdf/{pdf_filename}"
@@ -953,8 +927,7 @@ def submit_absence_request():
             'registro_id': registro_id,
             'pdf_path': pdf_path,
             'pdf_url': pdf_url,
-            'print_success': print_success,
-            'printer_name': printer_name or 'Nessuna stampante configurata'
+            'pdf_filename': pdf_filename
         })
         
     except Exception as e:
@@ -1261,63 +1234,33 @@ def resend_absence_notification():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/do-print', methods=['POST'])
-@app.route('/api/do-print/<filename>', methods=['GET'])
-def print_pdf_endpoint(filename=None):
-    """Stampa PDF su stampante predefinita"""
+@app.route('/api/delete-pdf/<filename>', methods=['POST', 'DELETE'])
+def delete_pdf_endpoint(filename):
+    """Elimina un PDF dalla cartella temp/.
+
+    Usato dal client dopo la stampa (o al timeout del bottone stampa)
+    per non lasciare documenti personali nella cartella temporanea.
+    """
     try:
-        # Gestisci GET (con filename nell'URL) o POST (con pdf_path nel body)
-        if filename:
-            # GET request - filename nell'URL
-            pdf_path = os.path.join('temp', filename)
-            logger.info(f"GET request - filename: {filename}, path: {pdf_path}")
+        # Protezione path traversal: solo basename, solo in temp/
+        safe_name = os.path.basename(filename)
+        if not safe_name or safe_name != filename:
+            return jsonify({'success': False, 'error': 'Nome file non valido'}), 400
+
+        pdf_path = os.path.abspath(os.path.join('temp', safe_name))
+        temp_dir = os.path.abspath('temp')
+        if not pdf_path.startswith(temp_dir + os.sep):
+            return jsonify({'success': False, 'error': 'Path non consentito'}), 400
+
+        if os.path.exists(pdf_path):
+            os.remove(pdf_path)
+            logger.info(f"PDF eliminato: {pdf_path}")
+            return jsonify({'success': True})
         else:
-            # POST request - pdf_path nel body
-            data = request.json
-            pdf_path = data.get('pdf_path', '')
-            logger.info(f"POST request - pdf_path: {pdf_path}")
-        
-        if not pdf_path:
-            logger.error("Path PDF non fornito")
-            return jsonify({'success': False, 'error': 'Path PDF non fornito'}), 400
-        
-        # Se il path non è assoluto, rendilo assoluto
-        if not os.path.isabs(pdf_path):
-            pdf_path = os.path.abspath(pdf_path)
-            logger.info(f"Path convertito in assoluto: {pdf_path}")
-        
-        # Verifica che il file esista
-        if not os.path.exists(pdf_path):
-            logger.error(f"File PDF non trovato: {pdf_path}")
-            return jsonify({'success': False, 'error': f'File PDF non trovato: {os.path.basename(pdf_path)}'}), 404
-        
-        # Ottieni stampante predefinita
-        printer_name = get_default_printer()
-        logger.info(f"Stampante predefinita: {printer_name}")
-        
-        if not printer_name:
-            logger.error("Nessuna stampante configurata")
-            return jsonify({'success': False, 'error': 'Nessuna stampante configurata'}), 500
-        
-        # Stampa PDF
-        logger.info(f"Avvio stampa: {pdf_path} su {printer_name}")
-        print_success = print_pdf_silent(pdf_path, printer_name)
-        
-        if print_success:
-            logger.info(f"PDF stampato con successo: {pdf_path}")
-            return jsonify({
-                'success': True,
-                'message': 'PDF stampato con successo',
-                'printer_name': printer_name
-            })
-        else:
-            logger.error(f"Errore stampa PDF: {pdf_path}")
-            return jsonify({'success': False, 'error': 'Errore durante la stampa'}), 500
-        
+            return jsonify({'success': True, 'note': 'file già assente'})
+
     except Exception as e:
-        logger.error(f"Errore endpoint print-pdf: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"Errore eliminazione PDF {filename}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

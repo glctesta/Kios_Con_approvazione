@@ -2,6 +2,28 @@
 
 Tutte le modifiche rilevanti al progetto saranno documentate in questo file.
 
+## [2.3.5] - 2026-04-17
+
+### 🖨️ Stampa client-side (fix accesso da rete locale)
+
+- La stampa dei documenti (certificato, cerere di assenza, raport istoric absențe)
+  ora avviene sul browser del client che ha fatto la richiesta, non più sul PC
+  dove gira il server.
+- Nuovo flusso: al termine della generazione appare il bottone
+  **"Printează (15)"** con countdown. Click → stampa client-side via iframe
+  nascosto (kiosk silenzioso grazie a `--kiosk-printing`, PC remoti con dialog
+  standard del browser). Se non cliccato entro 15s il PDF viene eliminato.
+
+### 🔧 Modifiche tecniche
+
+- `app.py`: rimossa stampa server-side da `/api/generate-certificate`,
+  `/api/generate-absence-report`, `/api/submit-absence-request`.
+- `app.py`: sostituito endpoint `/api/do-print` con `/api/delete-pdf/<filename>`
+  (cleanup PDF con protezione path traversal).
+- `static/js/app.js`, `request.js`, `absence.js`: riscritto `handlePrint` con
+  stampa via iframe + countdown 15s.
+- `/api/news/print` e `printer_keepalive.py` invariati (funzioni kiosk-interne).
+
 ## [2.3.0] - 2026-01-21
 
 ### ✨ Novità
