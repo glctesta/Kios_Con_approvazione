@@ -25,7 +25,7 @@ REM Prova Chrome prima
 where chrome.exe >nul 2>&1
 if %ERRORLEVEL% == 0 (
     echo Browser: Google Chrome
-    start chrome.exe --kiosk http://localhost:5000 --start-fullscreen --incognito
+    start chrome.exe --kiosk http://localhost:3000 --start-fullscreen --incognito
     goto :end
 )
 
@@ -33,13 +33,13 @@ REM Se Chrome non c'è, usa Edge
 where msedge.exe >nul 2>&1
 if %ERRORLEVEL% == 0 (
     echo Browser: Microsoft Edge
-    start msedge.exe --kiosk http://localhost:5000 --edge-kiosk-type=fullscreen
+    start msedge.exe --kiosk http://localhost:3000 --edge-kiosk-type=fullscreen
     goto :end
 )
 
 REM Fallback a browser di default
 echo Browser: Default
-start http://localhost:5000
+start http://localhost:3000
 
 :end
 echo.

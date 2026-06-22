@@ -231,11 +231,11 @@ REM Attendi 2 secondi
 timeout /t 2 /nobreak >nul
 
 REM Avvia Chrome in modalita' kiosk
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --kiosk-printing http://localhost:5000
+start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --kiosk-printing http://localhost:3000
 
 echo.
 echo Chrome avviato in modalita' kiosk
-echo URL: http://localhost:5000
+echo URL: http://localhost:3000
 echo.
 echo Per uscire: Alt+F4 o Ctrl+Alt+Del
 echo.

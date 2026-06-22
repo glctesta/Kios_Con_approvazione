@@ -1,0 +1,186 @@
+.main-content {
+    display: grid;
+    gap: var(--spacing-lg);
+}
+
+.approval-card {
+    background: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-lg);
+}
+
+.section-title {
+    margin-bottom: var(--spacing-md);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.approval-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.actions-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.manager-info {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.pending-count {
+    margin-top: 0.35rem;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.last-update {
+    margin-top: 0.2rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.requests-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.requests-table th,
+.requests-table td {
+    border: 1px solid var(--gray-200);
+    padding: 0.6rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.requests-table th {
+    background: var(--gray-100);
+    color: var(--gray-700);
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.status-pending {
+    background: var(--warning-light);
+    color: #92400e;
+}
+
+.status-approved {
+    background: var(--success-light);
+    color: #047857;
+}
+
+.status-rejected {
+    background: var(--error-light);
+    color: #b91c1c;
+}
+
+.decision-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 210px;
+}
+
+.decision-option {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+    color: var(--gray-700);
+}
+
+.decision-checkbox {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+}
+
+.reject-motive {
+    width: 100%;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.65rem;
+    font-size: 0.85rem;
+}
+
+.btn-save-decision {
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.btn-save-decision:hover {
+    background: var(--primary-hover);
+}
+
+.read-only-note {
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.btn-approve,
+.btn-reject {
+    border: none;
+    border-radius: var(--radius-sm);
+    color: #fff;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.btn-approve {
+    background: var(--success-color);
+}
+
+.btn-reject {
+    background: var(--error-color);
+}
+
+.empty-state {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}

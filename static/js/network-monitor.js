@@ -7,29 +7,7 @@ let isCheckingConnection = false;
 
 const offlineOverlay = document.getElementById('offlineOverlay');
 
-// Controlla connessione internet esterna (PRIORITARIO)
-async function checkInternetConnection() {
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-        // Usa Google DNS (più affidabile e veloce)
-        const response = await fetch('https://dns.google/resolve?name=google.com&type=A', {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache',
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-        return response.ok;
-    } catch (error) {
-        console.debug('Internet check fallito:', error.message);
-        return false;
-    }
-}
-
-// Controlla connessione al server locale (secondario)
+// Controlla connessione al server locale Flask (unica fonte di verità per il kiosk)
 async function checkServerConnection() {
     try {
         const controller = new AbortController();
@@ -100,54 +78,26 @@ async function logOfflineRecovery(timestamp, duration) {
     }
 }
 
-// Check connessione completo - PRIORITÀ INTERNET
+// Check connessione: solo server locale (il kiosk non richiede internet pubblico)
 async function performConnectionCheck() {
     if (isCheckingConnection) return;
 
     isCheckingConnection = true;
 
     try {
-        const browserOnline = navigator.onLine;
-
-        // Se browser dice offline, trust it immediatamente
-        if (!browserOnline) {
-            if (isOnline) {
-                console.warn('🔴 Browser offline');
-                isOnline = false;
-                showOfflineOverlay();
-            }
-            return;
-        }
-
-        // Check INTERNET (priorità alta - rileva WiFi spento)
-        const internetOk = await checkInternetConnection();
-
-        if (!internetOk) {
-            // Internet non raggiungibile = OFFLINE
-            if (isOnline) {
-                console.warn('🔴 Internet non raggiungibile (WiFi spento?)');
-                isOnline = false;
-                showOfflineOverlay();
-            }
-            return;
-        }
-
-        // Internet OK - verifica anche server (opzionale)
         const serverOk = await checkServerConnection();
 
         if (!serverOk) {
-            // Internet OK ma server NO = problema server
             if (isOnline) {
-                console.warn('⚠️ Server non raggiungibile (ma internet OK)');
+                console.warn('🔴 Server locale non raggiungibile');
                 isOnline = false;
                 showOfflineOverlay();
             }
             return;
         }
 
-        // Tutto OK - siamo online
         if (!isOnline) {
-            console.log('✅ Connessione OK (Internet + Server)');
+            console.log('✅ Server locale raggiungibile');
             isOnline = true;
             hideOfflineOverlay();
         }

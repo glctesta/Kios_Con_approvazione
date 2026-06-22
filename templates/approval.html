@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprobare Cereri Absență - Sistem HR</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/approval.css">
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-container">
+                <img src="/static/logo.png" alt="Logo Companie" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1 class="title">Aprobare Cereri Absență</h1>
+            <p class="subtitle">Login manager. Reautentificare richiesta ad ogni refresh o cambio pagina.</p>
+            <a href="/" class="back-button" title="Torna alla pagina principale">
+                <span class="back-icon">🏠</span>
+                <span class="back-text">Pagina Principală</span>
+            </a>
+        </header>
+
+        <main class="main-content">
+            <section id="loginSection" class="approval-card">
+                <h2 class="section-title">Login Responsabile</h2>
+                <div class="approval-grid">
+                    <div class="form-group">
+                        <label for="userIdInput" class="form-label">
+                            <span class="label-text">UserId *</span>
+                        </label>
+                        <input type="text" id="userIdInput" class="form-input" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="passwordInput" class="form-label">
+                            <span class="label-text">Password *</span>
+                        </label>
+                        <input type="password" id="passwordInput" class="form-input" maxlength="100">
+                    </div>
+                </div>
+                <div class="actions-row">
+                    <button id="loginBtn" class="btn-primary">
+                        <span class="btn-icon">🔐</span>
+                        Login
+                    </button>
+                </div>
+            </section>
+
+            <section id="managerSection" class="approval-card" style="display:none;">
+                <div class="manager-header">
+                    <div>
+                        <h2 class="section-title">Richieste in Attesa</h2>
+                        <p id="managerInfo" class="manager-info"></p>
+                        <p id="pendingCount" class="pending-count">Richieste pending: 0</p>
+                        <p id="lastUpdate" class="last-update">Ultimo aggiornamento: -</p>
+                    </div>
+                    <div class="actions-row">
+                        <button id="refreshBtn" class="btn-secondary">Aggiorna</button>
+                        <button id="logoutBtn" class="btn-secondary">Logout</button>
+                    </div>
+                </div>
+
+                <div id="requestsEmpty" class="empty-state" style="display:none;">
+                    Nessuna richiesta pending trovata per questa fase.
+                </div>
+
+                <div id="requestsContainer" class="table-wrapper" style="display:none;">
+                    <table class="requests-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nr. Cerere</th>
+                                <th>Dipendente</th>
+                                <th>Tipo</th>
+                                <th>Periodo</th>
+                                <th>Orario</th>
+                                <th>Data Invio</th>
+                                <th>Stato</th>
+                                <th>Azione</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Elaborazione in corso...</p>
+            </div>
+
+            <div id="toastContainer" class="toast-container"></div>
+        </main>
+    </div>
+
+    <script src="/static/js/inactivity-timeout.js"></script>
+    <script src="/static/js/approval.js"></script>
+</body>
+
+</html>

@@ -152,7 +152,7 @@ echo Prossimi passi:
 echo.
 echo 1. Verifica configurazione stampante (se necessaria)
 echo 2. Testa applicazione con: START_APP.bat
-echo 3. Apri browser: http://localhost:5000
+echo 3. Apri browser: http://localhost:3000
 echo.
 echo Per avvio automatico:
 echo - Crea collegamento a START_APP.bat

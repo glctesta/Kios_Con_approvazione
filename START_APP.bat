@@ -91,10 +91,10 @@ echo [4/4] Avvio server Flask...
 echo.
 echo ========================================
 echo   Server in esecuzione su:
-echo   http://localhost:5000
+echo   http://localhost:3000
 echo ========================================
 echo.
-echo Apri il browser e vai a: http://localhost:5000
+echo Apri il browser e vai a: http://localhost:3000
 echo.
 echo Premi Ctrl+C per fermare il server
 echo.

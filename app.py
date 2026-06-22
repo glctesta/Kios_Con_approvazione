@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, jsonify, send_file, send_from
 from datetime import datetime
 import logging
 import os
+import uuid
 from db_connection import DatabaseConnection
 from config_manager import ConfigManager
 from certificate_generator import CertificateGenerator
@@ -37,6 +38,9 @@ db_connection = DatabaseConnection(config_manager)
 
 # Inizializza Kiosk Request Logger per monitoraggio utilizzo
 kiosk_logger = KioskRequestLogger(db_connection)
+
+# Token manager approvazioni: solo memoria del server, non persistente lato browser
+manager_auth_tokens = {}
 
 
 
@@ -71,6 +75,32 @@ def cerere():
 def verifica():
     """Pagina verificare stare cerere"""
     return render_template('check.html')
+
+
+@app.route('/approvazioni')
+def approvazioni():
+    """Pagina approvazione/rifiuto richieste assenza (accesso manager)."""
+    return render_template('approval.html')
+
+
+def _get_manager_auth_from_request():
+    """Recupera il token manager dalla request e lo valida."""
+    auth_header = request.headers.get('Authorization', '')
+    token = ''
+
+    if auth_header.lower().startswith('bearer '):
+        token = auth_header[7:].strip()
+    else:
+        token = request.headers.get('X-Manager-Token', '').strip()
+
+    if not token:
+        return None, None
+
+    auth_data = manager_auth_tokens.get(token)
+    if not auth_data:
+        return None, None
+
+    return token, auth_data
 
 
 @app.route('/favicon.ico')
@@ -937,6 +967,195 @@ def submit_absence_request():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/manager/login', methods=['POST'])
+def manager_login():
+    """Login manager per approvazione richieste assenza."""
+    try:
+        data = request.json or {}
+        user_id = (data.get('userId') or '').strip()
+        password = (data.get('password') or '').strip()
+
+        if not user_id or not password:
+            return jsonify({
+                'success': False,
+                'error': 'UserId e Password sono obbligatori'
+            }), 400
+
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+
+        request_manager = AbsenceRequestManager(conn)
+        manager_info = request_manager.authenticate_manager(user_id, password)
+
+        if not manager_info:
+            return jsonify({
+                'success': False,
+                'error': 'Credenziali non valide'
+            }), 401
+
+        if not manager_info.get('main_cdc_id'):
+            return jsonify({
+                'success': False,
+                'error': 'Manager senza CDC assegnato'
+            }), 403
+
+        token = uuid.uuid4().hex
+        manager_auth_tokens[token] = {
+            'user_id': manager_info['user_id'],
+            'manager_name': manager_info['manager_name'],
+            'manager_email': manager_info.get('manager_email'),
+            'function_code': manager_info.get('function_code'),
+            'main_cdc_id': manager_info.get('main_cdc_id'),
+            'main_cdc_description': manager_info.get('main_cdc_description'),
+            'employee_hire_history_id': manager_info.get('employee_hire_history_id')
+        }
+
+        return jsonify({
+            'success': True,
+            'token': token,
+            'manager': {
+                'name': manager_info['manager_name'],
+                'email': manager_info.get('manager_email'),
+                'function_code': manager_info.get('function_code'),
+                'main_cdc_id': manager_info.get('main_cdc_id'),
+                'main_cdc_description': manager_info.get('main_cdc_description')
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Errore manager login: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/manager/logout', methods=['POST'])
+def manager_logout():
+    """Logout manager approvazioni assenza."""
+    token, _ = _get_manager_auth_from_request()
+    if token and token in manager_auth_tokens:
+        manager_auth_tokens.pop(token, None)
+    return jsonify({'success': True})
+
+
+@app.route('/api/manager/session', methods=['GET'])
+def manager_session_status():
+    """Stato sessione manager corrente."""
+    _, manager_session = _get_manager_auth_from_request()
+    if not manager_session:
+        return jsonify({'success': True, 'authenticated': False})
+
+    return jsonify({
+        'success': True,
+        'authenticated': True,
+        'manager': {
+            'name': manager_session.get('manager_name'),
+            'email': manager_session.get('manager_email'),
+            'function_code': manager_session.get('function_code'),
+            'main_cdc_id': manager_session.get('main_cdc_id'),
+            'main_cdc_description': manager_session.get('main_cdc_description')
+        }
+    })
+
+
+@app.route('/api/manager/pending-requests', methods=['GET'])
+def manager_pending_requests():
+    """Lista richieste pending autorizzabili dal manager loggato."""
+    try:
+        _, manager_session = _get_manager_auth_from_request()
+        if not manager_session:
+            return jsonify({'success': False, 'error': 'Sessione non autenticata'}), 401
+
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+
+        request_manager = AbsenceRequestManager(conn)
+        requests = request_manager.get_requests_for_manager(main_cdc_id=manager_session['main_cdc_id'])
+
+        return jsonify({
+            'success': True,
+            'requests': requests,
+            'total': len(requests)
+        })
+
+    except Exception as e:
+        logger.error(f"Errore recupero pending requests manager: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/manager/decision', methods=['POST'])
+def manager_decision():
+    """Approva o rifiuta una richiesta assenza."""
+    try:
+        _, manager_session = _get_manager_auth_from_request()
+        if not manager_session:
+            return jsonify({'success': False, 'error': 'Sessione non autenticata'}), 401
+
+        data = request.json or {}
+        absence_request_id = data.get('absenceRequestId')
+        decision = (data.get('decision') or '').strip().lower()
+        refuse_motive = (data.get('refuseMotive') or '').strip()
+
+        if not absence_request_id:
+            return jsonify({'success': False, 'error': 'absenceRequestId mancante'}), 400
+
+        if decision not in ['approve', 'reject']:
+            return jsonify({'success': False, 'error': 'decision deve essere approve o reject'}), 400
+
+        if decision == 'reject' and not refuse_motive:
+            return jsonify({'success': False, 'error': 'Motivo rifiuto obbligatorio'}), 400
+
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+
+        request_manager = AbsenceRequestManager(conn)
+
+        can_access = request_manager.manager_can_access_request(
+            main_cdc_id=manager_session['main_cdc_id'],
+            absence_request_id=absence_request_id
+        )
+
+        if not can_access:
+            return jsonify({
+                'success': False,
+                'error': 'Non autorizzato a gestire questa richiesta'
+            }), 403
+
+        manager_name = manager_session['manager_name']
+
+        if decision == 'approve':
+            updated = request_manager.approve_request(absence_request_id, manager_name)
+        else:
+            updated = request_manager.reject_request(absence_request_id, manager_name, refuse_motive)
+
+        if not updated:
+            return jsonify({
+                'success': False,
+                'error': 'Nessuna riga aggiornata, richiesta non trovata'
+            }), 404
+
+        return jsonify({
+            'success': True,
+            'message': 'Richiesta aggiornata con successo',
+            'decision': decision,
+            'approved_by': manager_name,
+            'approved_at': datetime.now().isoformat() if decision == 'approve' else None,
+            'rejected': 1 if decision == 'reject' else 0,
+            'refuse_motive': refuse_motive if decision == 'reject' else None
+        })
+
+    except Exception as e:
+        logger.error(f"Errore decisione manager: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 
 
 @app.route('/api/check-request-status', methods=['POST'])
@@ -1575,7 +1794,7 @@ if __name__ == '__main__':
     
     try:
         # Avvia server
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=3000, debug=True, use_reloader=False)
     finally:
         # Arresta keep-alive alla chiusura
         logger.info("Arresto Printer Keep-Alive service...")

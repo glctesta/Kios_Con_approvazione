@@ -26,10 +26,10 @@ echo   URL ACCESSO
 echo ========================================
 echo.
 echo Locale (sul kiosk):
-echo   http://localhost:5000
+echo   http://localhost:3000
 echo.
 echo Da altri PC sulla rete:
-echo   http://%IP%:5000
+echo   http://%IP%:3000
 echo.
 echo ========================================
 echo   FIREWALL
@@ -39,19 +39,19 @@ echo.
 REM Verifica se regola firewall esiste
 netsh advfirewall firewall show rule name="Kiosk HR" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo Status: Porta 5000 APERTA
+    echo Status: Porta 3000 APERTA
     echo La regola firewall esiste gia'
 ) else (
-    echo Status: Porta 5000 CHIUSA
+    echo Status: Porta 3000 CHIUSA
     echo.
     echo Per aprire la porta, esegui come Amministratore:
-    echo   netsh advfirewall firewall add rule name="Kiosk HR" dir=in action=allow protocol=TCP localport=5000
+    echo   netsh advfirewall firewall add rule name="Kiosk HR" dir=in action=allow protocol=TCP localport=3000
     echo.
     set /p APRI="Vuoi aprire la porta ora? (S/N): "
     if /i "%APRI%"=="S" (
         echo.
-        echo Apertura porta 5000...
-        netsh advfirewall firewall add rule name="Kiosk HR" dir=in action=allow protocol=TCP localport=5000
+        echo Apertura porta 3000...
+        netsh advfirewall firewall add rule name="Kiosk HR" dir=in action=allow protocol=TCP localport=3000
         if %errorlevel% equ 0 (
             echo OK: Porta aperta con successo!
         ) else (
@@ -66,7 +66,7 @@ echo   TEST CONNESSIONE
 echo ========================================
 echo.
 echo 1. Apri browser su altro PC
-echo 2. Vai a: http://%IP%:5000
+echo 2. Vai a: http://%IP%:3000
 echo 3. Dovresti vedere la pagina launcher
 echo.
 

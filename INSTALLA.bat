@@ -64,12 +64,18 @@ if %errorLevel% neq 0 (
 )
 
 echo [1/8] Verifica Python 3.11...
-python --version 2>nul | findstr "3.11" >nul
+py -3.11 --version >nul 2>&1
 if %errorLevel% neq 0 (
-    echo [ERRORE] Python 3.11 non trovato!
+    echo [ERRORE] Python 3.11 non trovato tramite il py launcher!
     echo.
-    echo Installare Python 3.11 da: https://www.python.org/downloads/
-    echo IMPORTANTE: Durante l'installazione selezionare "Add Python to PATH"
+    echo Installare Python 3.11 da:
+    echo   https://www.python.org/downloads/release/python-3119/
+    echo.
+    echo IMPORTANTE durante l'installazione:
+    echo   - selezionare "Add Python to PATH"
+    echo   - lasciare selezionato "py launcher"
+    echo.
+    echo Verifica con: py -3.11 --version
     pause
     exit /b 1
 )
@@ -81,13 +87,13 @@ if exist venv (
     echo [INFO] Ambiente virtuale esistente trovato, lo rimuovo...
     rmdir /s /q venv
 )
-python -m venv venv
+py -3.11 -m venv venv
 if %errorLevel% neq 0 (
     echo [ERRORE] Impossibile creare ambiente virtuale
     pause
     exit /b 1
 )
-echo [OK] Ambiente virtuale creato
+echo [OK] Ambiente virtuale creato (Python 3.11)
 
 echo.
 echo [3/8] Attivazione ambiente virtuale...

@@ -568,87 +568,378 @@ class AbsenceRequestManager:
             return None
     
     def get_manager_emails(self, employee_hire_history_id):
-        """Recupera email manager tramite stored procedure GetManager"""
+        """
+        Recupera le email dei superiori gerarchici del dipendente.
+
+        Criteri (stesso MainCdcId, FunctionCode superiore, rapporto attivo):
+          - EmployeeHireHistory.EndWorkDate IS NULL AND employeerid = 2
+          - EmployeeCdcStories.DateOut IS NULL
+          - Functions.FunctionCode > FunctionCode del dipendente target
+          - CostCenters.CdcId = MainCdcId del dipendente target
+          - EmployeeAddress.WorkEmail non vuoto (e DateOut IS NULL)
+        """
         try:
             cursor = self.conn.cursor()
-            logger.info(f"[GET_MANAGER_EMAILS] Creazione table variable e chiamata SP Employee.dbo.GetManager per hire_history_id={employee_hire_history_id}")
+            logger.info(f"[GET_MANAGER_EMAILS] Ricerca superiori gerarchici per hire_history_id={employee_hire_history_id}")
+
             query = """
-            DECLARE @Ids dbo.EmployeeIdTableType;
-            INSERT INTO @Ids VALUES (?);
-            EXEC [Employee].[dbo].[GetManager] @Ids;
+            DECLARE @EmployeeHireHistoryId INT = ?;
+            DECLARE @FunctionCode INT;
+            DECLARE @MainCdcId INT;
+
+            SELECT @FunctionCode = f.FunctionCode,
+                   @MainCdcId = c.CdcId
+            FROM employee.dbo.EmployeeHireHistory h
+            INNER JOIN employee.dbo.EmployeeCdcStories css ON h.EmployeeHireHistoryId = css.EmployeeHireHistoryId
+                AND css.DateOut IS NULL
+                AND h.EndWorkDate IS NULL
+                AND h.employeerid = 2
+            INNER JOIN employee.dbo.Functions f ON f.FunctionId = css.FunctionId
+            INNER JOIN employee.dbo.CdcSub s ON s.SubCdcId = css.SubCdcId
+            INNER JOIN employee.dbo.CostCenters c ON c.CdcId = s.CdcId
+            WHERE h.EmployeeHireHistoryId = @EmployeeHireHistoryId;
+
+            SELECT DISTINCT
+                UPPER(e.EmployeeName + ' ' + e.EmployeeSurname) AS Employee,
+                a.WorkEmail
+            FROM employee.dbo.EmployeeCdcStories css
+            INNER JOIN employee.dbo.EmployeeHireHistory h ON css.EmployeeHireHistoryId = h.EmployeeHireHistoryId
+                AND h.EndWorkDate IS NULL
+                AND h.employeerid = 2
+                AND css.DateOut IS NULL
+            INNER JOIN employee.dbo.Functions f ON f.FunctionId = css.FunctionId
+            INNER JOIN employee.dbo.CdcSub s ON s.SubCdcId = css.SubCdcId
+            INNER JOIN employee.dbo.CostCenters c ON c.CdcId = s.CdcId
+            INNER JOIN employee.dbo.Employees e ON e.EmployeeId = h.EmployeeId
+            INNER JOIN employee.dbo.EmployeeAddress a ON a.EmployeeId = e.EmployeeId AND a.DateOut IS NULL
+            WHERE f.FunctionCode > @FunctionCode
+              AND c.CdcId = @MainCdcId
+              AND LEN(ISNULL(a.WorkEmail, '')) > 0
+            ORDER BY UPPER(e.EmployeeName + ' ' + e.EmployeeSurname);
             """
+
             cursor.execute(query, (employee_hire_history_id,))
-            # Gestione robusta dei result set multipli
-            rows = None
+
+            # La query produce result-set multipli (DECLARE/SELECT @vars + SELECT finale).
+            # Avanza fino al primo result-set con righe.
+            rows = []
             while True:
                 try:
-                    rows = cursor.fetchall()
-                    break
-                except pyodbc.ProgrammingError:
-                    if not cursor.nextset():
+                    fetched = cursor.fetchall()
+                    if fetched:
+                        rows = fetched
                         break
-            if rows is None:
-                rows = []
-            
-            logger.debug(f"[GET_MANAGER_EMAILS] Dati grezzi ritornati dalla SP GetManager per hire_history_id={employee_hire_history_id}: {rows}")
-            
+                except pyodbc.ProgrammingError:
+                    pass
+                if not cursor.nextset():
+                    break
+
+            logger.debug(f"[GET_MANAGER_EMAILS] Righe ritornate: {len(rows)}")
+
             emails = []
-            for row_idx, row in enumerate(rows):
-                logger.debug(f"[GET_MANAGER_EMAILS] Riga {row_idx}: tipo={type(row)}, contenuto={row}")
-                # Itera su tutti i campi della riga per estrarre tutte le email
-                for field_idx, field in enumerate(row):
-                    # Verifica che il campo non sia NULL
-                    if field is not None:
-                        # Converte in stringa se necessario
-                        field_str = field.strip() if isinstance(field, str) else str(field).strip()
-                        logger.debug(f"[GET_MANAGER_EMAILS] Campo [{field_idx}]: '{field_str}'")
-                        
-                        # Se il campo contiene più email separate da virgola o semicolon, divide
-                        if field_str:
-                            # Prova a dividere per virgola o semicolon
-                            if ',' in field_str or ';' in field_str:
-                                # Divide per virgola o semicolon
-                                separators = [',', ';']
-                                email_list = [field_str]
-                                for sep in separators:
-                                    new_list = []
-                                    for item in email_list:
-                                        if sep in item:
-                                            new_list.extend(item.split(sep))
-                                        else:
-                                            new_list.append(item)
-                                    email_list = new_list
-                                
-                                # Processa ogni email estratta
-                                for email_item in email_list:
-                                    email = email_item.strip()
-                                    # Valida che sia un'email (contiene @) e non vuota
-                                    if email and '@' in email:
-                                        # Evita duplicati nella lista
-                                        if email not in emails:
-                                            emails.append(email)
-                                            logger.debug(f"[GET_MANAGER_EMAILS] Email estratta (da separatori): {email}")
-                            else:
-                                # Email singola
-                                # Valida che sia un'email (contiene @) e non vuota
-                                if field_str and '@' in field_str:
-                                    # Evita duplicati nella lista
-                                    if field_str not in emails:
-                                        emails.append(field_str)
-                                        logger.debug(f"[GET_MANAGER_EMAILS] Email estratta (singola): {field_str}")
-            
-            logger.info(f"[GET_MANAGER_EMAILS] Email manager trovate (TOTALE {len(emails)}): {emails}")
+            for row in rows:
+                # La query ritorna (Employee, WorkEmail): l'email è nell'ultimo campo
+                work_email = row[-1]
+                if work_email is None:
+                    continue
+                email = str(work_email).strip()
+                if email and '@' in email and email not in emails:
+                    emails.append(email)
+                    logger.debug(f"[GET_MANAGER_EMAILS] Superiore: {row[0]} -> {email}")
+
+            logger.info(f"[GET_MANAGER_EMAILS] Email superiori gerarchici trovate (TOTALE {len(emails)}): {emails}")
             if not emails:
-                logger.warning(f"[GET_MANAGER_EMAILS] Nessuna email trovata per hire_history_id {employee_hire_history_id}")
-            
+                logger.warning(f"[GET_MANAGER_EMAILS] Nessun superiore con email trovato per hire_history_id {employee_hire_history_id}")
+
             return emails
-            
+
         except Exception as e:
-            logger.error(f"[GET_MANAGER_EMAILS] Errore recupero email manager: {str(e)}")
+            logger.error(f"[GET_MANAGER_EMAILS] Errore recupero email superiori: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
-            # In caso di errore, restituisci lista vuota invece di bloccare
             return []
+
+    def authenticate_manager(self, user_id, password):
+        """Autentica manager con user/password e recupera CDC di appartenenza."""
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            WITH Manager (EmployeeHireHistoryId, SubCdcId, FunctionCode, MainCdcId, MainCdcDescription, WorkEmail, UserId, Pass, ManagerName)
+            AS (
+                SELECT
+                    h.EmployeeHireHistoryId,
+                    cs.SubCdcId,
+                    f.FunctionCode,
+                    c.CdcId,
+                    c.CdcDescription,
+                    a.WorkEmail,
+                    k.nomeuser,
+                    k.pass,
+                    e.EmployeeName + ' ' + e.EmployeeSurname AS ManagerName
+                FROM employee.dbo.EmployeeCdcStories cs
+                INNER JOIN employee.dbo.CdcSub csub
+                    ON csub.SubCdcId = cs.SubCdcId
+                    AND cs.DateOut IS NULL
+                INNER JOIN employee.dbo.CostCenters c
+                    ON c.CdcId = csub.CdcId
+                INNER JOIN employee.dbo.Functions f
+                    ON cs.FunctionId = f.FunctionId
+                    AND f.FunctionCode > 61
+                INNER JOIN employee.dbo.EmployeeHireHistory h
+                    ON cs.EmployeeHireHistoryId = h.EmployeeHireHistoryId
+                    AND h.EndWorkDate IS NULL
+                    AND h.EmployeerId = 2
+                INNER JOIN employee.dbo.EmployeeAddress a
+                    ON a.EmployeeId = h.EmployeeId
+                    AND a.DateOut IS NULL
+                INNER JOIN employee.dbo.Employees e
+                    ON e.EmployeeId = h.EmployeeId
+                INNER JOIN ResetServices.dbo.tbuserkey k
+                    ON k.idanga = e.EmployeeId
+            )
+            SELECT TOP 1
+                m.UserId,
+                m.Pass,
+                m.ManagerName,
+                m.WorkEmail,
+                m.FunctionCode,
+                m.MainCdcId,
+                m.MainCdcDescription,
+                m.EmployeeHireHistoryId
+            FROM Manager m
+            WHERE m.WorkEmail IS NOT NULL
+              AND LTRIM(RTRIM(m.UserId)) = LTRIM(RTRIM(?))
+              AND LTRIM(RTRIM(m.Pass)) = LTRIM(RTRIM(?))
+            ORDER BY m.FunctionCode DESC;
+            """
+
+            cursor.execute(query, (user_id, password))
+            row = cursor.fetchone()
+
+            if not row:
+                return None
+
+            return {
+                'user_id': row[0],
+                'password': row[1],
+                'manager_name': row[2],
+                'manager_email': row[3],
+                'function_code': int(row[4]) if row[4] is not None else None,
+                'main_cdc_id': int(row[5]) if row[5] is not None else None,
+                'main_cdc_description': row[6],
+                'employee_hire_history_id': int(row[7]) if row[7] is not None else None
+            }
+
+        except Exception as e:
+            logger.error(f"Errore autenticazione manager: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    def get_requests_for_manager(self, main_cdc_id):
+        """Recupera tutte le richieste assenza del CDC del manager, ordinate alfabeticamente."""
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            DECLARE @MainCdcId INT = ?;
+
+            WITH AllowedEmployees AS (
+                SELECT DISTINCT
+                    h.EmployeeHireHistoryId,
+                    UPPER(e.EmployeeName + ' ' + e.EmployeeSurname) AS Employee,
+                    c.CdcId,
+                    c.CdcDescription,
+                    f.FunctionCode
+                FROM employee.dbo.EmployeeHireHistory h
+                INNER JOIN employee.dbo.EmployeeCdcStories ecs
+                    ON h.EmployeeHireHistoryId = ecs.EmployeeHireHistoryId
+                    AND ecs.DateOut IS NULL
+                    AND h.EndWorkDate IS NULL
+                    AND h.EmployeerId = 2
+                INNER JOIN employee.dbo.Employees e
+                    ON h.EmployeeId = e.EmployeeId
+                INNER JOIN employee.dbo.CdcSub cs
+                    ON cs.SubCdcId = ecs.SubCdcId
+                INNER JOIN employee.dbo.CostCenters c
+                    ON c.CdcId = cs.CdcId
+                INNER JOIN employee.dbo.Functions f
+                    ON f.FunctionId = ecs.FunctionId
+                WHERE f.FunctionCode BETWEEN 40 AND 69
+                  AND c.CdcId = @MainCdcId
+            )
+            SELECT
+                ar.AbsenceRequestId,
+                r.DocName,
+                ae.Employee,
+                ISNULL(rt.RequestName, 'Sconosciuto') AS RequestType,
+                ar.DateStart,
+                ar.DateEnd,
+                ar.FromTime,
+                ar.ToTime,
+                ar.DateSys,
+                ar.Approved,
+                ar.Rejected,
+                ar.ApprovedBy,
+                ar.RefuseMotive,
+                ae.CdcId,
+                ae.CdcDescription,
+                ae.FunctionCode
+            FROM [Employee].[dbo].[AbsenceRequestes] ar
+            INNER JOIN AllowedEmployees ae
+                ON ae.EmployeeHireHistoryId = ar.EmployrrHireHistoryId
+            LEFT JOIN [Employee].[dbo].[Registry] r
+                ON r.RegistroId = ar.RegistroId
+            LEFT JOIN [Timeclocking].[dbo].[RequestType] rt
+                ON rt.IDRequestType = ar.IDRequestType
+            WHERE (ar.Rejected IS NULL OR ar.Rejected = 0)
+              AND (ar.ApprovedBy IS NULL OR LTRIM(RTRIM(ar.ApprovedBy)) = '')
+              AND (ar.Approved IS NULL OR YEAR(ar.Approved) <= 1900)
+            ORDER BY ae.Employee ASC, ar.DateStart ASC, ar.DateSys DESC;
+            """
+
+            cursor.execute(query, (main_cdc_id,))
+            rows = cursor.fetchall()
+
+            requests = []
+            for row in rows:
+                approved_date = row[9]
+                rejected_flag = row[10]
+                approved_by = row[11]
+                refuse_motive = row[12]
+
+                is_approved = bool(approved_date and getattr(approved_date, 'year', 0) > 1900 and approved_by)
+                is_rejected = bool(rejected_flag and rejected_flag != 0)
+
+                if is_approved:
+                    status = 'approved'
+                    status_text = 'Aprobată'
+                elif is_rejected:
+                    status = 'rejected'
+                    status_text = 'Respinsă'
+                else:
+                    status = 'pending'
+                    status_text = 'În așteptare'
+
+                requests.append({
+                    'absence_request_id': row[0],
+                    'request_number': row[1],
+                    'employee': row[2],
+                    'request_type': row[3],
+                    'date_start': row[4].isoformat() if row[4] else None,
+                    'date_end': row[5].isoformat() if row[5] else None,
+                    'from_time': str(row[6]) if row[6] else None,
+                    'to_time': str(row[7]) if row[7] else None,
+                    'date_sys': row[8].isoformat() if row[8] else None,
+                    'approved': approved_date.isoformat() if approved_date else None,
+                    'rejected': rejected_flag,
+                    'approved_by': approved_by,
+                    'refuse_motive': refuse_motive,
+                    'status': status,
+                    'status_text': status_text,
+                    'cdc_id': int(row[13]) if row[13] is not None else None,
+                    'cdc_description': row[14],
+                    'function_code': int(row[15]) if row[15] is not None else None,
+                    'can_take_action': status == 'pending'
+                })
+
+            return requests
+
+        except Exception as e:
+            logger.error(f"Errore recupero richieste manager per CDC: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+
+    def manager_can_access_request(self, main_cdc_id, absence_request_id):
+        """Verifica che una specifica richiesta appartenga al CDC del manager corrente."""
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            DECLARE @MainCdcId INT = ?;
+
+            SELECT TOP 1 ar.AbsenceRequestId
+            FROM [Employee].[dbo].[AbsenceRequestes] ar
+            INNER JOIN employee.dbo.EmployeeHireHistory h
+                ON h.EmployeeHireHistoryId = ar.EmployrrHireHistoryId
+                AND h.EndWorkDate IS NULL
+                AND h.EmployeerId = 2
+            INNER JOIN employee.dbo.EmployeeCdcStories ecs
+                ON ecs.EmployeeHireHistoryId = h.EmployeeHireHistoryId
+                AND ecs.DateOut IS NULL
+            INNER JOIN employee.dbo.CdcSub cs
+                ON cs.SubCdcId = ecs.SubCdcId
+            INNER JOIN employee.dbo.CostCenters c
+                ON c.CdcId = cs.CdcId
+            WHERE ar.AbsenceRequestId = ?
+              AND c.CdcId = @MainCdcId;
+            """
+
+            cursor.execute(query, (main_cdc_id, absence_request_id))
+            row = cursor.fetchone()
+            return row is not None
+
+        except Exception as e:
+            logger.error(f"Errore verifica accesso manager a richiesta: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+
+    def approve_request(self, absence_request_id, manager_name):
+        """Approva una richiesta assenza."""
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            UPDATE [Employee].[dbo].[AbsenceRequestes]
+            SET [Approved] = GETDATE(),
+                [ApprovedBy] = ?,
+                [Rejected] = 0,
+                [RefuseMotive] = NULL
+            WHERE [AbsenceRequestId] = ?
+            """
+
+            cursor.execute(query, (manager_name, absence_request_id))
+            updated = cursor.rowcount
+            self.conn.commit()
+
+            return updated > 0
+
+        except Exception as e:
+            logger.error(f"Errore approvazione richiesta {absence_request_id}: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            self.conn.rollback()
+            return False
+
+    def reject_request(self, absence_request_id, manager_name, refuse_motive):
+        """Rifiuta una richiesta assenza."""
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            UPDATE [Employee].[dbo].[AbsenceRequestes]
+            SET [Approved] = NULL,
+                [ApprovedBy] = ?,
+                [Rejected] = 1,
+                [RefuseMotive] = ?
+            WHERE [AbsenceRequestId] = ?
+            """
+
+            cursor.execute(query, (manager_name, refuse_motive, absence_request_id))
+            updated = cursor.rowcount
+            self.conn.commit()
+
+            return updated > 0
+
+        except Exception as e:
+            logger.error(f"Errore rifiuto richiesta {absence_request_id}: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            self.conn.rollback()
+            return False
     
     def get_registry_info(self, registro_id):
         """Recupera informazioni registro"""

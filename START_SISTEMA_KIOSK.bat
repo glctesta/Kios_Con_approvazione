@@ -28,14 +28,14 @@ taskkill /F /IM chrome.exe >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 REM Step 4: Avvia Chrome in kiosk mode
-start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --kiosk-printing http://localhost:5000
+start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --kiosk-printing http://localhost:3000
 
 echo.
 echo ========================================
 echo   SISTEMA KIOSK AVVIATO
 echo ========================================
 echo.
-echo URL: http://localhost:5000
+echo URL: http://localhost:3000
 echo Modalita': Fullscreen Kiosk
 echo.
 echo Per uscire: Alt+F4 o Ctrl+Alt+Del

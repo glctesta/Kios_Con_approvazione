@@ -91,7 +91,7 @@ echo 3. Riavviare l'applicazione:
 echo    python app.py
 echo.
 echo 4. Testare il sistema:
-echo    Aprire http://localhost:5000
+echo    Aprire http://localhost:3000
 echo    Verificare i due frame (Slideshow e News)
 echo.
 echo 5. Consultare la documentazione:
