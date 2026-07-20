@@ -17,17 +17,28 @@ const state = {
     autoResetTimeout: null,
     printCountdownInterval: null,
     printCountdownTimeout: null,
-    isProcessing: false
+    isProcessing: false,
+    lastKeyTime: null           // Timestamp ultimo carattere inserito (per rilevare digitazione manuale)
 };
 
 // ========================================
 // CONFIGURATION
 // ========================================
 const config = {
-    badgeReadDelay: 500,        // ms dopo input badge prima di validare
-    autoResetDelay: 30000,      // ms prima di auto-reset dopo stampa (30 secondi)
-    showResultDuration: 10000,  // ms per mostrare risultato prima di tornare a badge
-    printButtonTimeout: 15000   // ms prima che il bottone stampa sparisca e il PDF venga eliminato
+    badgeReadDelayRFID: 500,     // ms attesa dopo scansione RFID (burst veloce)
+    badgeReadDelayManual: 2000,  // ms attesa dopo digitazione manuale (lenta)
+    manualTypingThreshold: 150,  // ms tra caratteri: sopra = digitazione manuale
+    autoResetDelay: 30000,       // ms prima di auto-reset dopo stampa (30 secondi)
+    showResultDuration: 10000,   // ms per mostrare risultato prima di tornare a badge
+    printButtonTimeout: 15000    // ms prima che il bottone stampa sparisca e il PDF venga eliminato
+};
+
+// ========================================
+// SESSION STORAGE KEYS
+// ========================================
+const SESSION_KEYS = {
+    employee: 'kiosk_badge_employee',
+    badgeValue: 'kiosk_badge_value'
 };
 
 // ========================================
@@ -72,11 +83,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Setup event listeners
     setupEventListeners();
 
-    // Focus automatico su badge input
-    focusBadgeInput();
+    // Ripristina badge dalla sessione (se presente e ancora valido)
+    const restored = restoreBadgeFromSession();
 
-    // Mostra messaggio benvenuto
-    showToast('Sistem gata - Apropiați badge-ul RFID', 'success');
+    if (!restored) {
+        // Focus automatico su badge input solo se non abbiamo ripristinato il badge
+        focusBadgeInput();
+        showToast('Sistem gata - Apropiați badge-ul RFID', 'success');
+    }
 
     // Attiva auto-scroll per le istruzioni se necessario
     initializeInstructionsAutoScroll();
@@ -92,6 +106,7 @@ function focusBadgeInput() {
 
 async function handleBadgeInput(e) {
     const badgeNumber = e.target.value.trim();
+    const now = Date.now();
 
     // Clear previous timeout
     if (state.badgeReadTimeout) {
@@ -100,9 +115,18 @@ async function handleBadgeInput(e) {
 
     // Se il campo è vuoto, reset status
     if (!badgeNumber) {
+        state.lastKeyTime = null;
         updateBadgeStatus('waiting');
         return;
     }
+
+    // Determina se è digitazione manuale o scansione RFID.
+    // Se il tempo dall'ultimo carattere supera la soglia → l'utente sta digitando.
+    const isManualTyping = state.lastKeyTime !== null &&
+        (now - state.lastKeyTime) > config.manualTypingThreshold;
+    state.lastKeyTime = now;
+
+    const delay = isManualTyping ? config.badgeReadDelayManual : config.badgeReadDelayRFID;
 
     // Mostra status "lettura in corso"
     updateBadgeStatus('reading');
@@ -110,7 +134,7 @@ async function handleBadgeInput(e) {
     // Debounce: attendi che l'utente finisca di digitare/lettore finisca
     state.badgeReadTimeout = setTimeout(async () => {
         await validateBadge(badgeNumber);
-    }, config.badgeReadDelay);
+    }, delay);
 }
 
 async function validateBadge(badgeNumber) {
@@ -135,11 +159,15 @@ async function validateBadge(badgeNumber) {
             updateBadgeStatus('success');
             showToast(`Bun venit ${data.employee.name}!`, 'success');
 
+            // Salva badge in sessionStorage per persistenza durante la sessione
+            saveBadgeToSession(data.employee, elements.badgeInput.value.trim());
+
             // Disabilita input badge
             elements.badgeInput.disabled = true;
         } else {
             updateBadgeStatus('error');
             showToast(data.error || 'Badge nerecunoscut', 'error');
+            clearBadgeSession();
 
             // Reset dopo 2 secondi
             setTimeout(() => {
@@ -150,6 +178,7 @@ async function validateBadge(badgeNumber) {
         console.error('Error validating badge:', error);
         updateBadgeStatus('error');
         showToast('Eroare de conexiune', 'error');
+        clearBadgeSession();
 
         setTimeout(() => {
             resetBadgeInput();
@@ -198,8 +227,59 @@ function showEmployeeInfo(employee) {
 function resetBadgeInput() {
     elements.badgeInput.value = '';
     elements.badgeInput.disabled = false;
+    state.lastKeyTime = null;
     updateBadgeStatus('waiting');
     focusBadgeInput();
+}
+
+// ========================================
+// SESSION PERSISTENCE (badge)
+// ========================================
+function saveBadgeToSession(employee, badgeValue) {
+    try {
+        sessionStorage.setItem(SESSION_KEYS.employee, JSON.stringify(employee));
+        sessionStorage.setItem(SESSION_KEYS.badgeValue, badgeValue || '');
+        console.log('💾 Badge salvato in sessione:', employee.name);
+    } catch (e) {
+        console.warn('sessionStorage non disponibile:', e);
+    }
+}
+
+function clearBadgeSession() {
+    try {
+        sessionStorage.removeItem(SESSION_KEYS.employee);
+        sessionStorage.removeItem(SESSION_KEYS.badgeValue);
+        console.log('🗑️ Sessione badge cancellata');
+    } catch (e) {
+        // Ignora errori
+    }
+}
+
+function restoreBadgeFromSession() {
+    try {
+        const employeeJson = sessionStorage.getItem(SESSION_KEYS.employee);
+        const badgeValue   = sessionStorage.getItem(SESSION_KEYS.badgeValue);
+        if (!employeeJson) return false;
+
+        const employee = JSON.parse(employeeJson);
+        state.selectedEmployee = employee;
+
+        // Ripristina valore nel campo badge (mascherato)
+        if (badgeValue) {
+            elements.badgeInput.value = badgeValue;
+        }
+        elements.badgeInput.disabled = true;
+
+        showEmployeeInfo(employee);
+        updateBadgeStatus('success');
+        showToast(`Bun venit ${employee.name}!`, 'success');
+        console.log('✅ Badge ripristinato dalla sessione:', employee.name);
+        return true;
+    } catch (e) {
+        console.warn('Errore ripristino badge da sessione:', e);
+        clearBadgeSession();
+        return false;
+    }
 }
 
 // ========================================
@@ -252,8 +332,8 @@ function setupEventListeners() {
     // Form submission
     elements.certificateForm.addEventListener('submit', handleFormSubmit);
 
-    // Reset button
-    elements.resetBtn.addEventListener('click', resetToKioskMode);
+    // Reset button (reset completo: cancella badge e torna alla home)
+    elements.resetBtn.addEventListener('click', () => resetToKioskMode(true));
 
     // Add reason modal
     elements.addReasonBtn.addEventListener('click', openAddReasonModal);
@@ -263,7 +343,8 @@ function setupEventListeners() {
 
     // Result actions — bottone stampa: stampa client-side (kiosk silenzioso, remoto con dialog)
     elements.printBtn.addEventListener('click', printCertificate);
-    elements.newCertBtn.addEventListener('click', resetToKioskMode);
+    // "Generează altă adeverință": mantiene il badge, torna al form
+    elements.newCertBtn.addEventListener('click', () => resetToKioskMode(false));
 
     // Auto-focus badge quando perde focus
     elements.badgeInput.addEventListener('blur', () => {
@@ -558,7 +639,7 @@ function validateForm() {
     return isValid;
 }
 
-function resetToKioskMode() {
+function resetToKioskMode(clearBadge = false) {
     // Clear any auto-reset timers
     if (state.autoResetTimeout) {
         clearTimeout(state.autoResetTimeout);
@@ -566,8 +647,23 @@ function resetToKioskMode() {
     }
     clearPrintCountdown();
 
-    // Redirect alla pagina launcher principale
-    window.location.href = '/';
+    if (clearBadge) {
+        // Reset completo: cancella badge e torna alla home (es. pulsante Resetează o inattività)
+        clearBadgeSession();
+        window.location.href = '/';
+    } else {
+        // Reset parziale: mantiene il badge e torna al form per una nuova adeverinta
+        state.selectedReason = null;
+        elements.reasonSelect.value = '';
+        elements.customReasonGroup.style.display = 'none';
+        elements.customReason.value = '';
+        elements.resultSection.style.display = 'none';
+        elements.certificateForm.style.display = '';
+        validateForm();
+        // Scorri in cima
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast('Selectați un nou tip de adeverință', 'success');
+    }
 }
 
 // ========================================

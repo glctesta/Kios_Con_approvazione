@@ -125,6 +125,16 @@
         </div>
     </div>
 
+    <!-- Pulizia sessione badge: quando si torna alla home, la sessione del badge precedente viene cancellata -->
+    <script>
+        // Cancella la sessione badge eventualmente rimasta da una sessione precedente
+        try {
+            sessionStorage.removeItem('kiosk_badge_employee');
+            sessionStorage.removeItem('kiosk_badge_value');
+            console.log('🏠 Home: sessione badge precedente cancellata.');
+        } catch (e) { /* sessionStorage non disponibile */ }
+    </script>
+
     <!-- Animazioni e effetti -->
     <script>
         // Variabili globali per news e slideshow

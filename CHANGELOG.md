@@ -2,7 +2,23 @@
 
 Tutte le modifiche rilevanti al progetto saranno documentate in questo file.
 
+## [2.3.7] - 2026-07-20
+
+### ⌨️ Timeout adattivo per inserimento badge manuale
+- Rilevamento automatico scansione RFID vs digitazione manuale tramite intervallo tra caratteri
+- Digitazione manuale (>150ms tra caratteri): attesa **2000ms** (era 500ms per tutti)
+- Scansione RFID (burst veloce): attesa **500ms** invariata
+
+### 💾 Badge persistente durante la sessione
+- Badge salvato in `sessionStorage` dopo validazione
+- "Generează altă adeverință" mantiene il badge, resetta solo il form
+- "Resetează" e timeout inattività cancellano la sessione e tornano alla home
+- Home page (`launcher.html`) pulisce automaticamente la sessione al caricamento
+
+---
+
 ## [2.3.5] - 2026-04-17
+
 
 ### 🖨️ Stampa client-side (fix accesso da rete locale)
 
