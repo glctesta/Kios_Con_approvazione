@@ -22,11 +22,11 @@ const state = {
 };
 
 // ========================================
-// CONFIGURATION
+// CONFIGURATION  (valori di default; vengono sovrascritti da /api/badge-config)
 // ========================================
 const config = {
-    badgeReadDelayRFID: 500,     // ms attesa dopo scansione RFID (burst veloce)
-    badgeReadDelayManual: 2000,  // ms attesa dopo digitazione manuale (lenta)
+    badgeReadDelayRFID: 800,     // ms attesa dopo scansione RFID (burst veloce)
+    badgeReadDelayManual: 3000,  // ms attesa dopo digitazione manuale (lenta)
     manualTypingThreshold: 150,  // ms tra caratteri: sopra = digitazione manuale
     autoResetDelay: 30000,       // ms prima di auto-reset dopo stampa (30 secondi)
     showResultDuration: 10000,   // ms per mostrare risultato prima di tornare a badge
@@ -77,6 +77,9 @@ const elements = {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Certificate Generator - KIOSK MODE initialized');
 
+    // Carica configurazione badge dal server (reading_badge_time.json)
+    await loadBadgeConfig();
+
     // Carica solo i motivi (non più i dipendenti)
     await loadReasons();
 
@@ -95,6 +98,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Attiva auto-scroll per le istruzioni se necessario
     initializeInstructionsAutoScroll();
 });
+
+// ========================================
+// BADGE CONFIG LOADER
+// ========================================
+async function loadBadgeConfig() {
+    try {
+        const response = await fetch('/api/badge-config');
+        const data = await response.json();
+        if (data.success) {
+            config.badgeReadDelayRFID       = data.rfid_delay_ms;
+            config.badgeReadDelayManual     = data.manual_typing_delay_ms;
+            config.manualTypingThreshold    = data.manual_typing_threshold_ms;
+            console.log(`⚙️ Badge config caricata: RFID=${data.rfid_delay_ms}ms, Manuale=${data.manual_typing_delay_ms}ms, Soglia=${data.manual_typing_threshold_ms}ms`);
+        }
+    } catch (e) {
+        console.warn('⚠️ Impossibile caricare badge config dal server, uso valori di default:', e);
+    }
+}
 
 // ========================================
 // BADGE MANAGEMENT
@@ -438,7 +459,13 @@ async function generateCertificate() {
             state.currentPdfPath = data.pdfPath;
             state.currentPdfFilename = extractFilename(data.pdfPath);
             showResult(data);
-            showToast('Adeverință generată cu succes!', 'success');
+            showToast('Adeverință generată cu succes! Se trimite la imprimantă...', 'success');
+
+            // AUTO-STAMPA: avvia la stampa automaticamente dopo un breve delay
+            // (il bottone rimane visibile come fallback se la stampa fallisce)
+            setTimeout(() => {
+                printCertificate();
+            }, 800);
         } else {
             throw new Error(data.error || 'Eroare la generarea adeverinței');
         }

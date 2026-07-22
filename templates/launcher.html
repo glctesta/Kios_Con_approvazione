@@ -38,8 +38,8 @@
         <h1 class="main-title">Servicii pentru Angajați</h1>
         <p class="subtitle">Selectați serviciul dorit</p>
 
-        <!-- Griglia bottoni -->
-        <div class="services-grid">
+        <!-- Griglia card servizi: 5 card su 2 righe (3+2) -->
+        <div class="cards-section">
             <!-- Bottone 1: Certificati -->
             <a href="/certificati" class="service-card active">
                 <div class="card-icon">📄</div>
@@ -67,7 +67,7 @@
             <!-- Bottone 4: Verificare Stare Cerere -->
             <a href="/verifica" class="service-card active">
                 <div class="card-icon">🔍</div>
-                <h2 class="card-title">Verificare Stare Cerere</h2>
+                <h2 class="card-title">Verificare Cerere</h2>
                 <p class="card-description">Verificați starea cererii de absență</p>
                 <div class="card-badge">Disponibil</div>
             </a>
@@ -79,12 +79,14 @@
                 <p class="card-description">Login manager pentru aprobare sau refuz</p>
                 <div class="card-badge">Disponibil</div>
             </a>
+        </div>
 
+        <!-- Area media: slideshow + news affiancati -->
+        <div class="media-section">
             <!-- Frame Slideshow -->
             <div class="slideshow-container">
                 <div id="slideshowFrame" class="slideshow-display">
                     <img id="slideshowImage" src="" alt="Slideshow" class="slideshow-image">
-
                 </div>
                 <div id="slideshowLoading" class="loading-display" style="display: none;">
                     <div class="loading-spinner"></div>
@@ -124,6 +126,13 @@
             </div>
         </div>
     </div>
+
+    <!-- Barra messaggi inferiore (fuori dal container, a piena larghezza) -->
+    <div class="bottom-message-bar" id="bottomMessageBar" style="display:none;">
+        <span class="bottom-message-icon">ℹ️</span>
+        <span class="bottom-message-text" id="bottomMessageText"></span>
+    </div>
+
 
     <!-- Pulizia sessione badge: quando si torna alla home, la sessione del badge precedente viene cancellata -->
     <script>

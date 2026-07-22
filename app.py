@@ -1,4 +1,4 @@
-﻿"""
+"""
 Applicazione Web per Generazione Certificati/Adeverințe
 Sostituisce la form VBA di Access con un'interfaccia web moderna
 """
@@ -81,6 +81,51 @@ def verifica():
 def approvazioni():
     """Pagina approvazione/rifiuto richieste assenza (accesso manager)."""
     return render_template('approval.html')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BADGE TIMING CONFIG
+# ─────────────────────────────────────────────────────────────────────────────
+BADGE_CONFIG_FILE = 'reading_badge_time.json'
+BADGE_CONFIG_DEFAULTS = {
+    "badge_reading": {
+        "rfid_delay_ms": 800,
+        "manual_typing_delay_ms": 3000,
+        "manual_typing_threshold_ms": 150
+    }
+}
+
+def _load_badge_config():
+    """Legge reading_badge_time.json; se non esiste lo crea con i valori di default."""
+    import json
+    if not os.path.exists(BADGE_CONFIG_FILE):
+        with open(BADGE_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(BADGE_CONFIG_DEFAULTS, f, indent=4)
+        logger.info(f"Creato {BADGE_CONFIG_FILE} con valori di default.")
+        return BADGE_CONFIG_DEFAULTS
+    try:
+        with open(BADGE_CONFIG_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Errore lettura {BADGE_CONFIG_FILE}: {e} — uso valori di default.")
+        return BADGE_CONFIG_DEFAULTS
+
+
+@app.route('/api/badge-config', methods=['GET'])
+def get_badge_config():
+    """Restituisce la configurazione timing badge dal file reading_badge_time.json."""
+    try:
+        cfg = _load_badge_config()
+        br = cfg.get('badge_reading', BADGE_CONFIG_DEFAULTS['badge_reading'])
+        return jsonify({
+            'success': True,
+            'rfid_delay_ms': br.get('rfid_delay_ms', 800),
+            'manual_typing_delay_ms': br.get('manual_typing_delay_ms', 3000),
+            'manual_typing_threshold_ms': br.get('manual_typing_threshold_ms', 150)
+        })
+    except Exception as e:
+        logger.error(f"Errore get_badge_config: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def _get_manager_auth_from_request():
