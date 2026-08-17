@@ -1830,7 +1830,7 @@ if __name__ == '__main__':
     
     try:
         # Avvia server
-        app.run(host='0.0.0.0', port=3000, debug=True, use_reloader=False)
+        app.run(host='0.0.0.0', port=3000, debug=False, use_reloader=False, threaded=True)
     finally:
         # Arresta keep-alive alla chiusura
         logger.info("Arresto Printer Keep-Alive service...")
