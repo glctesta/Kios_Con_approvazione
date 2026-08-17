@@ -99,6 +99,10 @@ echo.
 echo Premi Ctrl+C per fermare il server
 echo.
 
+REM Forza encoding UTF-8 per caratteri rumeni/Unicode (ș, ț, â, etc.)
+set PYTHONUTF8=1
+set PYTHONIOENCODING=utf-8
+
 REM Avvia Python con percorso assoluto
 python "%~dp0app.py"
 

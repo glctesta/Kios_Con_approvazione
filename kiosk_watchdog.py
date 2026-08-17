@@ -59,11 +59,16 @@ def run():
         logger.info(f'[Run #{run_count}] Avvio server Flask...')
 
         try:
+            env = os.environ.copy()
+            env['PYTHONUTF8']       = '1'
+            env['PYTHONIOENCODING'] = 'utf-8'
+
             proc = subprocess.Popen(
                 [PYTHON_EXE, str(APP_SCRIPT)],
                 cwd=str(BASE_DIR),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=env,
             )
             logger.info(f'[Run #{run_count}] Processo avviato — PID {proc.pid}')
             proc.wait()  # blocca finche' il processo gira

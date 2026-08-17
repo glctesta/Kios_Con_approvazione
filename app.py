@@ -6,7 +6,16 @@ from flask import Flask, render_template, request, jsonify, send_file, send_from
 from datetime import datetime
 import logging
 import os
+import sys
 import uuid
+
+# Forza encoding UTF-8 su Windows per gestire caratteri rumeni/Unicode nei log e JSON
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 from db_connection import DatabaseConnection
 from config_manager import ConfigManager
 from certificate_generator import CertificateGenerator
@@ -207,15 +216,16 @@ def get_news():
         regular_news = []
         
         for row in rows:
+            # Usa str() per garantire che nvarchar con caratteri Unicode (rumeni, emoji) sia gestito correttamente
             news_item = {
                 'id': row[0],
                 'employee_id': row[1],
                 'start_date': row[2].isoformat() if row[2] else None,
-                'end_date': row[3].isoformat() if row[3] else None,
-                'message': row[4],
-                'publisher': row[5],
-                'is_mandatory': bool(row[6]),
-                'printable': bool(row[7]) if len(row) > 7 else False
+                'end_date':   row[3].isoformat() if row[3] else None,
+                'message':    str(row[4]) if row[4] is not None else '',
+                'publisher':  str(row[5]) if row[5] is not None else '',
+                'is_mandatory': bool(row[6]) if row[6] is not None else False,
+                'printable':    bool(row[7]) if len(row) > 7 and row[7] is not None else False
             }
             
             if news_item['is_mandatory']:
@@ -240,7 +250,7 @@ def get_news():
             })
         
     except Exception as e:
-        logger.error(f"Errore recupero news: {str(e)}")
+        logger.error(f"Errore recupero news: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
