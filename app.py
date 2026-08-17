@@ -1536,23 +1536,13 @@ def delete_pdf_endpoint(filename):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint per verificare connessione server"""
-    try:
-        # Verifica connessione database
-        conn = db_connection.connect()
-        db_status = 'ok' if conn else 'error'
-        
-        return jsonify({
-            'status': 'ok',
-            'database': db_status,
-            'timestamp': datetime.now().isoformat()
-        })
-    except Exception as e:
-        logger.error(f"Health check error: {e}")
-        return jsonify({
-            'status': 'error',
-            'error': str(e)
-        }), 500
+    """Health check leggero — risponde subito senza query DB.
+    Usato dal network-monitor.js per verificare che il server Flask sia attivo.
+    """
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat()
+    })
 
 
 @app.route('/api/log-offline', methods=['POST'])
