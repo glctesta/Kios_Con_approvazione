@@ -17,7 +17,7 @@ from kiosk_request_logger import KioskRequestLogger
 from utils import send_email, get_email_recipients
 from pdf_printer import print_pdf_silent, get_default_printer
 from printer_keepalive import start_printer_keepalive, stop_printer_keepalive
-from company_config import EMPLOYER_ID, FALLBACK_EMAIL
+from company_config import EMPLOYER_ID, FALLBACK_EMAIL, LOGO_PATH, COMPANY_NAME
 
 # Configurazione logging
 logging.basicConfig(
@@ -1675,9 +1675,9 @@ def print_news():
         width, height = A4
         
         # Logo
-        if os.path.exists('logo.png'):
+        if os.path.exists(LOGO_PATH):
             try:
-                img = ImageReader('logo.png')
+                img = ImageReader(LOGO_PATH)
                 c.drawImage(img, 30*mm, height - 40*mm, width=40*mm, height=20*mm, preserveAspectRatio=True)
             except:
                 pass

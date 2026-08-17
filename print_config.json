@@ -19,6 +19,8 @@
     },
     "company": {
         "employer_id": 2,
+        "logo_path": "logo.png",
+        "company_name": "Vandewiele Romania",
         "smtp_server": "vandewiele-com.mail.protection.outlook.com",
         "smtp_port": 25,
         "email_from": "Accounting@Eutron.it",

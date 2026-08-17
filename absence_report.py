@@ -14,7 +14,7 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from company_config import EMPLOYER_ID
+from company_config import EMPLOYER_ID, LOGO_PATH
 from PIL import Image
 from reportlab.lib.utils import ImageReader
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class AbsenceReportGenerator:
     def __init__(self, db_connection):
         self.conn = db_connection
-        self.logo_path = 'logo.png'
+        self.logo_path = LOGO_PATH  # Configurabile in print_config.json → company.logo_path
         
         # Registra font DejaVuSans per caratteri rumeni (ă, â, î, ș, ț)
         try:

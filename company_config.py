@@ -18,6 +18,8 @@ _CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'print_c
 
 _DEFAULTS = {
     "employer_id": 2,
+    "logo_path": "logo.png",
+    "company_name": "Vandewiele Romania",
     "smtp_server": "vandewiele-com.mail.protection.outlook.com",
     "smtp_port": 25,
     "email_from": "Accounting@Eutron.it",
@@ -52,6 +54,12 @@ _cfg = _load()
 # ID numerico del datore di lavoro nella tabella Employee.dbo.Employeers
 EMPLOYER_ID: int = int(_cfg['employer_id'])
 
+# Percorso del file logo aziendale usato nei PDF stampati
+LOGO_PATH: str   = str(_cfg['logo_path'])
+
+# Nome della società (usato in footer PDF e email)
+COMPANY_NAME: str = str(_cfg['company_name'])
+
 # Email / SMTP
 SMTP_SERVER: str   = str(_cfg['smtp_server'])
 SMTP_PORT: int     = int(_cfg['smtp_port'])
@@ -66,12 +74,14 @@ REPORT_RECIPIENTS: list = list(_cfg['report_recipients'])
 
 def reload():
     """Ricarica la configurazione da disco (utile per hot-reload senza riavviare il server)."""
-    global _cfg, EMPLOYER_ID, SMTP_SERVER, SMTP_PORT, EMAIL_FROM, FALLBACK_EMAIL, REPORT_RECIPIENTS
+    global _cfg, EMPLOYER_ID, LOGO_PATH, COMPANY_NAME, SMTP_SERVER, SMTP_PORT, EMAIL_FROM, FALLBACK_EMAIL, REPORT_RECIPIENTS
     _cfg = _load()
     EMPLOYER_ID        = int(_cfg['employer_id'])
+    LOGO_PATH          = str(_cfg['logo_path'])
+    COMPANY_NAME       = str(_cfg['company_name'])
     SMTP_SERVER        = str(_cfg['smtp_server'])
     SMTP_PORT          = int(_cfg['smtp_port'])
     EMAIL_FROM         = str(_cfg['email_from'])
     FALLBACK_EMAIL     = str(_cfg['fallback_email'])
     REPORT_RECIPIENTS  = list(_cfg['report_recipients'])
-    logger.info(f"company_config ricaricata: employer_id={EMPLOYER_ID}, smtp={SMTP_SERVER}")
+    logger.info(f"company_config ricaricata: employer_id={EMPLOYER_ID}, logo={LOGO_PATH}, smtp={SMTP_SERVER}")

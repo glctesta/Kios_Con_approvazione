@@ -5,7 +5,7 @@ Gestisce le richieste di assenza (ferie, permessi, ecc.)
 
 import logging
 import os
-from company_config import EMPLOYER_ID
+from company_config import EMPLOYER_ID, LOGO_PATH
 from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class AbsenceRequestManager:
     def __init__(self, db_connection):
         self.conn = db_connection
-        self.logo_path = 'logo.png'
+        self.logo_path = LOGO_PATH  # Configurabile in print_config.json → company.logo_path
         
         # Registra font DejaVuSans per caratteri rumeni
         try:

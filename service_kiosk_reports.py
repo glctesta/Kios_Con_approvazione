@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config_manager import ConfigManager
 from db_connection import DatabaseConnection
 from email_connector import EmailSender
-from company_config import REPORT_RECIPIENTS, EMAIL_FROM
+from company_config import REPORT_RECIPIENTS, EMAIL_FROM, COMPANY_NAME
 
 # Configurazione logging
 logging.basicConfig(
@@ -335,7 +335,7 @@ class KioskReportsService:
                 
                 <!-- Header con Logo -->
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
-                    <img src="cid:logo" alt="Vandewiele Logo" style="max-width: 200px; height: auto; margin-bottom: 20px;">
+                    <img src="cid:logo" alt="{COMPANY_NAME} Logo" style="max-width: 200px; height: auto; margin-bottom: 20px;">
                     <h1 style="color: white; margin: 0; font-size: 28px;">Kiosk HR Usage Report</h1>
                     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">{month_name} {year}</p>
                 </div>
@@ -459,7 +459,7 @@ class KioskReportsService:
                         Automated report generated on {datetime.now().strftime('%B %d, %Y at %H:%M')}
                     </p>
                     <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">
-                        Kiosk HR System - Vandewiele Romania © {year}
+                        Kiosk HR System - {COMPANY_NAME} © {year}
                     </p>
                 </div>
 

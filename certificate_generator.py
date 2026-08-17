@@ -13,7 +13,7 @@ from PIL import Image
 import io
 import os
 import logging
-from company_config import EMPLOYER_ID
+from company_config import EMPLOYER_ID, LOGO_PATH
 from utils import log_service_operation
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class CertificateGenerator:
     def __init__(self, db_connection):
         self.conn = db_connection
-        self.logo_path = 'logo.png'  # Logo nella root del progetto
+        self.logo_path = LOGO_PATH  # Configurabile in print_config.json → company.logo_path
         
         # Registra font per caratteri rumeni
         self.font_name = 'Helvetica'  # Default fallback
