@@ -17,6 +17,7 @@ from kiosk_request_logger import KioskRequestLogger
 from utils import send_email, get_email_recipients
 from pdf_printer import print_pdf_silent, get_default_printer
 from printer_keepalive import start_printer_keepalive, stop_printer_keepalive
+from company_config import EMPLOYER_ID, FALLBACK_EMAIL
 
 # Configurazione logging
 logging.basicConfig(
@@ -353,7 +354,7 @@ def get_employees():
         cursor = conn.cursor()
         
         # Query per ottenere dipendenti attivi (dalla form VBA)
-        query = """
+        query = f"""
         SELECT 
             H.EmployeeHireHistoryId,
             UPPER(E.EmployeeSurname + ' ' + E.EmployeeName) COLLATE Database_default AS EmployeeName,
@@ -367,12 +368,12 @@ def get_employees():
             AND ET.DataStop IS NULL
         INNER JOIN Timeclocking.dbo.Company C 
             ON ET.IDCompany = C.IDCompany 
-            AND C.CompanyCUI = (select EmployeerFiscalCode as cui from employee.dbo.employeers where employeerid=2)
+            AND C.CompanyCUI = (select EmployeerFiscalCode as cui from employee.dbo.employeers where employeerid={EMPLOYER_ID})
         WHERE H.endWorkDate IS NULL 
             AND H.employeerid = (
                 SELECT employeerid 
                 FROM employee.dbo.employeers 
-                WHERE employeerFiscalCode = (select EmployeerFiscalCode as cui from employee.dbo.employeers where employeerid=2)
+                WHERE employeerFiscalCode = (select EmployeerFiscalCode as cui from employee.dbo.employeers where employeerid={EMPLOYER_ID})
             )
         ORDER BY E.employeeSurName
         """
@@ -914,7 +915,7 @@ def submit_absence_request():
             # Se non ci sono manager, usa email fallback
             if not manager_emails:
                 logger.warning(f"[SUBMIT_ABSENCE] Nessun manager trovato per hire_history_id {hire_history_id}, uso email fallback")
-                manager_emails = ['gianluca.testa@vandewiele.com']
+                manager_emails = [FALLBACK_EMAIL]
             
             logger.info(f"[SUBMIT_ABSENCE] Invio email a: {manager_emails} (numero: {len(manager_emails)})")
             
@@ -1420,7 +1421,7 @@ def resend_absence_notification():
         # Se non ci sono manager, usa email fallback
         if not manager_emails:
             logger.warning(f"Nessun manager trovato per hire_history_id {hire_history_id}, uso email fallback")
-            manager_emails = ['gianluca.testa@vandewiele.com']
+            manager_emails = [FALLBACK_EMAIL]
         
         logger.info(f"Reinvio notifica a: {manager_emails}")
         

@@ -16,5 +16,16 @@
     "kiosk": {
         "auto_reset_delay_seconds": 30,
         "show_result_duration_seconds": 10
+    },
+    "company": {
+        "employer_id": 2,
+        "smtp_server": "vandewiele-com.mail.protection.outlook.com",
+        "smtp_port": 25,
+        "email_from": "Accounting@Eutron.it",
+        "fallback_email": "gianluca.testa@vandewiele.com",
+        "report_recipients": [
+            "Gianluca.Testa@Vandewiele.com",
+            "Cornelia.Ormenisan@Vandewiele.com"
+        ]
     }
 }

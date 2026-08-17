@@ -5,6 +5,7 @@ Gestisce le richieste di assenza (ferie, permessi, ecc.)
 
 import logging
 import os
+from company_config import EMPLOYER_ID
 from datetime import datetime, timedelta
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -117,7 +118,7 @@ class AbsenceRequestManager:
             cursor = self.conn.cursor()
             
             # Query complessa per calcolare ferie disponibili
-            query = """
+            query = f"""
             DECLARE @NoBadge VARCHAR(50) = ?
             DECLARE @Anno INT = ?
             DECLARE @DataRiferimento DATE = GETDATE()
@@ -181,7 +182,7 @@ class AbsenceRequestManager:
                     employee.dbo.employees E
                     INNER JOIN employee.dbo.EmployeeHireHistory H 
                         ON e.EmployeeId = h.EmployeeId 
-                        AND h.EmployeerId = 2 
+                        AND h.EmployeerId = {EMPLOYER_ID} 
                         AND h.EndWorkDate IS NULL
                     INNER JOIN [Timeclocking].[dbo].[Employee] TE 
                         ON e.EmployeeNID COLLATE Latin1_General_CI_AI = te.UniqueID COLLATE Latin1_General_CI_AI
@@ -572,7 +573,7 @@ class AbsenceRequestManager:
         Recupera le email dei superiori gerarchici del dipendente.
 
         Criteri (stesso MainCdcId, FunctionCode superiore, rapporto attivo):
-          - EmployeeHireHistory.EndWorkDate IS NULL AND employeerid = 2
+          - EmployeeHireHistory.EndWorkDate IS NULL AND employeerid = {EMPLOYER_ID}
           - EmployeeCdcStories.DateOut IS NULL
           - Functions.FunctionCode > FunctionCode del dipendente target
           - CostCenters.CdcId = MainCdcId del dipendente target
@@ -582,7 +583,7 @@ class AbsenceRequestManager:
             cursor = self.conn.cursor()
             logger.info(f"[GET_MANAGER_EMAILS] Ricerca superiori gerarchici per hire_history_id={employee_hire_history_id}")
 
-            query = """
+            query = f"""
             DECLARE @EmployeeHireHistoryId INT = ?;
             DECLARE @FunctionCode INT;
             DECLARE @MainCdcId INT;
@@ -593,7 +594,7 @@ class AbsenceRequestManager:
             INNER JOIN employee.dbo.EmployeeCdcStories css ON h.EmployeeHireHistoryId = css.EmployeeHireHistoryId
                 AND css.DateOut IS NULL
                 AND h.EndWorkDate IS NULL
-                AND h.employeerid = 2
+                AND h.employeerid = {EMPLOYER_ID}
             INNER JOIN employee.dbo.Functions f ON f.FunctionId = css.FunctionId
             INNER JOIN employee.dbo.CdcSub s ON s.SubCdcId = css.SubCdcId
             INNER JOIN employee.dbo.CostCenters c ON c.CdcId = s.CdcId
@@ -605,7 +606,7 @@ class AbsenceRequestManager:
             FROM employee.dbo.EmployeeCdcStories css
             INNER JOIN employee.dbo.EmployeeHireHistory h ON css.EmployeeHireHistoryId = h.EmployeeHireHistoryId
                 AND h.EndWorkDate IS NULL
-                AND h.employeerid = 2
+                AND h.employeerid = {EMPLOYER_ID}
                 AND css.DateOut IS NULL
             INNER JOIN employee.dbo.Functions f ON f.FunctionId = css.FunctionId
             INNER JOIN employee.dbo.CdcSub s ON s.SubCdcId = css.SubCdcId
@@ -664,7 +665,7 @@ class AbsenceRequestManager:
         try:
             cursor = self.conn.cursor()
 
-            query = """
+            query = f"""
             WITH Manager (EmployeeHireHistoryId, SubCdcId, FunctionCode, MainCdcId, MainCdcDescription, WorkEmail, UserId, Pass, ManagerName)
             AS (
                 SELECT
@@ -689,7 +690,7 @@ class AbsenceRequestManager:
                 INNER JOIN employee.dbo.EmployeeHireHistory h
                     ON cs.EmployeeHireHistoryId = h.EmployeeHireHistoryId
                     AND h.EndWorkDate IS NULL
-                    AND h.EmployeerId = 2
+                    AND h.EmployeerId = {EMPLOYER_ID}
                 INNER JOIN employee.dbo.EmployeeAddress a
                     ON a.EmployeeId = h.EmployeeId
                     AND a.DateOut IS NULL
@@ -742,7 +743,7 @@ class AbsenceRequestManager:
         try:
             cursor = self.conn.cursor()
 
-            query = """
+            query = f"""
             DECLARE @MainCdcId INT = ?;
 
             WITH AllowedEmployees AS (
@@ -757,7 +758,7 @@ class AbsenceRequestManager:
                     ON h.EmployeeHireHistoryId = ecs.EmployeeHireHistoryId
                     AND ecs.DateOut IS NULL
                     AND h.EndWorkDate IS NULL
-                    AND h.EmployeerId = 2
+                    AND h.EmployeerId = {EMPLOYER_ID}
                 INNER JOIN employee.dbo.Employees e
                     ON h.EmployeeId = e.EmployeeId
                 INNER JOIN employee.dbo.CdcSub cs
@@ -857,7 +858,7 @@ class AbsenceRequestManager:
         try:
             cursor = self.conn.cursor()
 
-            query = """
+            query = f"""
             DECLARE @MainCdcId INT = ?;
 
             SELECT TOP 1 ar.AbsenceRequestId
@@ -865,7 +866,7 @@ class AbsenceRequestManager:
             INNER JOIN employee.dbo.EmployeeHireHistory h
                 ON h.EmployeeHireHistoryId = ar.EmployrrHireHistoryId
                 AND h.EndWorkDate IS NULL
-                AND h.EmployeerId = 2
+                AND h.EmployeerId = {EMPLOYER_ID}
             INNER JOIN employee.dbo.EmployeeCdcStories ecs
                 ON ecs.EmployeeHireHistoryId = h.EmployeeHireHistoryId
                 AND ecs.DateOut IS NULL

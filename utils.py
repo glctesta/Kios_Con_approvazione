@@ -2,6 +2,7 @@ from email_connector import EmailSender
 import logging
 import re
 from typing import List, Optional
+from company_config import SMTP_SERVER, SMTP_PORT, EMAIL_FROM, EMPLOYER_ID
 
 
 logger = logging.getLogger("TraceabilityRS")  # usa la config fatta in main.py
@@ -49,9 +50,9 @@ def send_email(
     recipients: List[str],
     subject: str,
     body: str,
-    smtp_host: str = "vandewiele-com.mail.protection.outlook.com",
-    smtp_port: int = 25,
-    is_html: bool = False,  # <-- nuovo parametro opzionale, default False: compatibile
+    smtp_host: str = None,
+    smtp_port: int = None,
+    is_html: bool = False,
     timeout: int= 15
 ) -> None:
     """
@@ -80,13 +81,10 @@ def send_email(
     logger.info(f"[SEND_EMAIL DEBUG] Tipo recipients: {type(recipients)}, Numero destinatari: {len(recipients)}, Contenuto: {recipients}")
 
     try:
-        sender = EmailSender(smtp_host, smtp_port)
-
-        # ATTENZIONE: credenziali hardcoded – idealmente spostarle in config sicura
-        sender.save_credentials(
-            "Accounting@Eutron.it",
-            "9jHgFhSs7Vf+"
-        )
+        host = smtp_host or SMTP_SERVER
+        port = smtp_port or SMTP_PORT
+        sender = EmailSender(host, port)
+        sender.save_credentials(EMAIL_FROM, "")
 
         # Unica email a tutti i destinatari (To)
         all_recipients = [r.strip() for r in recipients if r and '@' in r]
@@ -126,7 +124,7 @@ def get_employee_work_email(conn, employee_name: str) -> Optional[str]:
         surname = parts[0]
         name = ' '.join(parts[1:])  # In caso di nomi composti
         
-        query = """
+        query = f"""
         SELECT a.WorkEmail 
         FROM employee.dbo.employees e 
         INNER JOIN employee.dbo.EmployeeAddress a 
@@ -135,7 +133,7 @@ def get_employee_work_email(conn, employee_name: str) -> Optional[str]:
         INNER JOIN employee.dbo.employeehirehistory h 
             ON e.employeeid = h.employeeid 
             AND h.EndWorkDate IS NULL 
-            AND h.employeerid = 2
+            AND h.employeerid = {EMPLOYER_ID}
         WHERE e.EmployeeSurname = ? AND e.EmployeeName = ?
         """
 

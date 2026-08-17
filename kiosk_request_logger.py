@@ -6,6 +6,7 @@ import socket
 import logging
 from datetime import datetime
 from typing import Optional
+from company_config import EMPLOYER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -54,14 +55,14 @@ class KioskRequestLogger:
         try:
             conn = self.db_connection.connect()
 
-            query = """
+            query = f"""
             SELECT e.EmployeeSurname + ' ' + e.EmployeeName AS EmployeeName 
             FROM ResetServices.dbo.tbuserkey U 
             INNER JOIN employee.dbo.employees e 
                 ON e.employeeid = u.idanga 
             INNER JOIN employee.dbo.EmployeeHireHistory H 
                 ON h.employeeid = e.EmployeeId 
-                AND h.employeerid = 2 
+                AND h.employeerid = {EMPLOYER_ID} 
                 AND h.EndWorkDate IS NULL 
             INNER JOIN employee.dbo.EmployeeAddress A 
                 ON a.EmployeeId = e.EmployeeId 

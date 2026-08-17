@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config_manager import ConfigManager
 from db_connection import DatabaseConnection
 from email_connector import EmailSender
+from company_config import REPORT_RECIPIENTS, EMAIL_FROM
 
 # Configurazione logging
 logging.basicConfig(
@@ -41,14 +42,11 @@ class KioskReportsService:
         self.db_connection = DatabaseConnection(self.config_manager)
         self.email_sender = EmailSender()
 
-        # Destinatari email
-        self.recipients = [
-            "Gianluca.Testa@Vandewiele.com",
-            "Cornelia.Ormenisan@Vandewiele.com"
-        ]
+        # Destinatari email (letti da print_config.json via company_config)
+        self.recipients = list(REPORT_RECIPIENTS)
 
-        # Setup credenziali email
-        self.email_sender.save_credentials("Accounting@Eutron.it", "9jHgFhSs7Vf+")
+        # Setup credenziali email (mittente da company_config)
+        self.email_sender.save_credentials(EMAIL_FROM, "")
 
     def get_monthly_statistics(self, year: int, month: int) -> Dict:
         """

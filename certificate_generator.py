@@ -13,6 +13,7 @@ from PIL import Image
 import io
 import os
 import logging
+from company_config import EMPLOYER_ID
 from utils import log_service_operation
 
 logger = logging.getLogger(__name__)
@@ -510,7 +511,7 @@ class CertificateGenerator:
         try:
             cursor = self.conn.cursor()
             
-            query = """
+            query = f"""
             SELECT 
                 S.DenomSoc,
                 S.ind1,
@@ -529,7 +530,7 @@ class CertificateGenerator:
                 ON E.EmployeerId = A.EmployeerId AND A.DateOut IS NULL
             INNER JOIN employee.dbo.employees EA 
                 ON A.EmployeeID = EA.EmployeeId
-            WHERE E.EmployeerId = 2
+            WHERE E.EmployeerId = {EMPLOYER_ID}
             """
             
             cursor.execute(query)

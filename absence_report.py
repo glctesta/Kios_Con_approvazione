@@ -14,6 +14,7 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from company_config import EMPLOYER_ID
 from PIL import Image
 from reportlab.lib.utils import ImageReader
 
@@ -75,7 +76,7 @@ class AbsenceReportGenerator:
         try:
             cursor = self.conn.cursor()
             
-            query = """
+            query = f"""
             DECLARE @NoBadge VARCHAR(50) = ?
             DECLARE @Anno INT = ?
             DECLARE @DataRiferimento DATE = DATEFROMPARTS(@Anno, 12, 31)
@@ -165,7 +166,7 @@ CalcoloAnzianitaCTE AS (
         employee.dbo.employees E
         INNER JOIN employee.dbo.EmployeeHireHistory H 
             ON e.EmployeeId = h.EmployeeId 
-            AND h.EmployeerId = 2 
+            AND h.EmployeerId = {EMPLOYER_ID} 
             AND h.EndWorkDate IS NULL
         INNER JOIN [Timeclocking].[dbo].[Employee] TE 
             ON e.EmployeeNID COLLATE Latin1_General_CI_AI = te.UniqueID COLLATE Latin1_General_CI_AI

@@ -4,10 +4,11 @@ from email.mime.multipart import MIMEMultipart
 from cryptography.fernet import Fernet
 import os
 import ssl
+from company_config import SMTP_SERVER as _DEFAULT_SMTP_SERVER, SMTP_PORT as _DEFAULT_SMTP_PORT
 
 
 class EmailSender:
-    def __init__(self, smtp_server="vandewiele-com.mail.protection.outlook.com", smtp_port=25):
+    def __init__(self, smtp_server=None, smtp_port=None):
         """
         Inizializza il sender email con server e porta SMTP
 
@@ -15,8 +16,8 @@ class EmailSender:
             smtp_server (str): Server SMTP
             smtp_port (int): Porta SMTP (default: 25 per relay server)
         """
-        self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
+        self.smtp_server = smtp_server or _DEFAULT_SMTP_SERVER
+        self.smtp_port   = smtp_port   or _DEFAULT_SMTP_PORT
         self.key = None
         self.encrypted_password = None
         self._key_file = "email_key.key"
