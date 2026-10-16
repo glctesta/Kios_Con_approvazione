@@ -6,7 +6,7 @@ Gestisce le richieste di assenza (ferie, permessi, ecc.)
 import logging
 import os
 from company_config import EMPLOYER_ID, LOGO_PATH
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -18,6 +18,20 @@ from utils import log_service_operation
 import pyodbc
 
 logger = logging.getLogger(__name__)
+
+# ── ID dei tipi di richiesta gestiti dal kiosk ([Timeclocking].[dbo].[RequestType]) ──
+VACATION_REQUEST_TYPE_ID = 1    # Concediu odihna (ferie / congedo ordinario)
+URGENT_ABSENCE_TYPE_ID = 18     # Invoire urgenta (recuperabila) - max 10 giorni/anno
+SPECIAL_ABSENCE_TYPE_ID = 19    # Motive speciale (deces, casatorie) - max 5 giorni/anno
+KIOSK_REQUEST_TYPE_IDS = (1, 7, 10, 12, URGENT_ABSENCE_TYPE_ID, SPECIAL_ABSENCE_TYPE_ID)
+
+# Scelta del dipendente per il recupero delle assenze urgenti (parametro in tabella)
+URGENT_RECOVERY_MONTH = 'MONTH'   # recupero entro la fine del mese della richiesta
+URGENT_RECOVERY_YEAR = 'YEAR'     # recupero entro la fine dell'anno lavorativo
+URGENT_RECOVERY_PERIODS = (URGENT_RECOVERY_MONTH, URGENT_RECOVERY_YEAR)
+
+# Fallback se la regola in AbsenceRules.DocsDeadlineDays non è presente
+DEFAULT_DOCS_DEADLINE_DAYS = 5
 
 
 class AbsenceRequestManager:
@@ -40,36 +54,42 @@ class AbsenceRequestManager:
         """Recupera tipi di richiesta disponibili"""
         try:
             cursor = self.conn.cursor()
-            
-            query = """
-            SELECT 
+
+            id_list = ','.join(str(i) for i in KIOSK_REQUEST_TYPE_IDS)
+            query = f"""
+            SELECT
                 rt.IDRequestType,
                 rt.RequestName,
                 rt.IsConsideredEntireDay,
-                ISNULL(ar.DayNoZone, 1) AS DayNoZone
+                ISNULL(ar.DayNoZone, 1) AS DayNoZone,
+                ar.MaxDaysPerYear,
+                ar.DocsDeadlineDays,
+                ar.ConvertToIDRequestType
             FROM [Timeclocking].[dbo].[RequestType] rt
-            LEFT JOIN [Employee].[dbo].[AbsenceRules] ar 
-                ON ar.IDRequestType = rt.IDRequestType 
-                AND ar.DayNoZone IS NOT NULL 
+            LEFT JOIN [Employee].[dbo].[AbsenceRules] ar
+                ON ar.IDRequestType = rt.IDRequestType
                 AND ar.DateOut IS NULL
-            WHERE rt.IDRequestType IN (1, 7, 10, 12)
+            WHERE rt.IDRequestType IN ({id_list})
             ORDER BY rt.RequestName
             """
-            
+
             cursor.execute(query)
             rows = cursor.fetchall()
-            
+
             request_types = []
             for row in rows:
                 request_types.append({
                     'id': row[0],
                     'name': row[1],
                     'entire_day': row[2],
-                    'day_no_zone': row[3] if row[3] is not None else 1
+                    'day_no_zone': row[3] if row[3] is not None else 1,
+                    'max_days_per_year': int(row[4]) if row[4] is not None else None,
+                    'docs_deadline_days': int(row[5]) if row[5] is not None else None,
+                    'convert_to_request_type': int(row[6]) if row[6] is not None else None
                 })
-            
+
             return request_types
-            
+
         except Exception as e:
             logger.error(f"Errore recupero tipi richiesta: {str(e)}")
             return []
@@ -109,9 +129,194 @@ class AbsenceRequestManager:
                     working_days += 1
             
             current_date += timedelta(days=1)
-        
+
         return working_days
-    
+
+    def get_absence_days_used(self, hire_history_id, request_type_id, year):
+        """
+        Giorni lavorativi già utilizzati nell'anno per un tipo di assenza
+        con quota annua (assenze urgenti / speciali).
+
+        Esclude le richieste rifiutate e quelle annullate per mancanza di
+        documentazione (convertite in congedo ordinario).
+        """
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            DECLARE @HireHistoryId INT = ?
+            DECLARE @RequestTypeId INT = ?
+            DECLARE @Anno INT = ?
+
+            ;WITH Numbers AS (
+                SELECT a.n + b.n + c.n AS n
+                FROM (
+                    SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+                    UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9
+                ) a
+                CROSS JOIN (
+                    SELECT 0 AS n UNION ALL SELECT 10 UNION ALL SELECT 20 UNION ALL SELECT 30
+                ) b
+                CROSS JOIN (
+                    SELECT 0 AS n UNION ALL SELECT 100 UNION ALL SELECT 200 UNION ALL SELECT 300
+                ) c
+                WHERE a.n + b.n + c.n <= 366
+            ),
+            FestiviCTE AS (
+                SELECT DISTINCT
+                    DATEFROMPARTS(YearPublicHoliday, MonthPublicHoliday, DayPublicHoliday) AS DataFestivo
+                FROM [Timeclocking].[dbo].[PublicHoliday]
+                WHERE YearPublicHoliday = @Anno
+            ),
+            GiorniEspansi AS (
+                SELECT
+                    DATEADD(DAY, N.n, AR.DateStart) AS DataCorrente,
+                    CASE
+                        WHEN DATEPART(WEEKDAY, DATEADD(DAY, N.n, AR.DateStart)) IN (1, 7) THEN 0
+                        WHEN EXISTS (
+                            SELECT 1 FROM FestiviCTE F
+                            WHERE F.DataFestivo = DATEADD(DAY, N.n, AR.DateStart)
+                        ) THEN 0
+                        ELSE 1
+                    END AS IsGiornoLavorativo
+                FROM [Employee].[dbo].[AbsenceRequestes] AR
+                CROSS JOIN Numbers N
+                WHERE AR.EmployrrHireHistoryId = @HireHistoryId
+                  AND AR.IDRequestType = @RequestTypeId
+                  AND DATEADD(DAY, N.n, AR.DateStart) <= AR.DateEnd
+                  AND (AR.Rejected IS NULL OR AR.Rejected = 0)
+                  AND (AR.ConvertedToOrdinary IS NULL OR AR.ConvertedToOrdinary = 0)
+            )
+            SELECT ISNULL(SUM(IsGiornoLavorativo), 0) AS GiorniUsati
+            FROM GiorniEspansi
+            WHERE YEAR(DataCorrente) = @Anno
+            """
+
+            cursor.execute(query, (hire_history_id, request_type_id, year))
+            row = cursor.fetchone()
+            return int(row[0]) if row and row[0] is not None else 0
+
+        except Exception as e:
+            logger.error(f"Errore calcolo giorni usati (tipo {request_type_id}): {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    def get_quota_info(self, hire_history_id, request_type_id, year):
+        """
+        Info sulla quota annua di un tipo di assenza (assenze urgenti/speciali):
+        limite per legge (AbsenceRules.MaxDaysPerYear), giorni usati e residui.
+        """
+        try:
+            cursor = self.conn.cursor()
+
+            query = """
+            SELECT MaxDaysPerYear, DocsDeadlineDays, ConvertToIDRequestType
+            FROM [Employee].[dbo].[AbsenceRules]
+            WHERE IDRequestType = ?
+                AND DateOut IS NULL
+            """
+            cursor.execute(query, (request_type_id,))
+            row = cursor.fetchone()
+
+            if not row or row[0] is None:
+                return None  # tipo senza quota annua: non soggetto a limite
+
+            max_days = int(row[0])
+            used = self.get_absence_days_used(hire_history_id, request_type_id, year)
+            if used is None:
+                used = 0
+
+            return {
+                'max_days': max_days,
+                'used': used,
+                'remaining': max(0, max_days - used),
+                'docs_deadline_days': int(row[1]) if row[1] is not None else None,
+                'convert_to_request_type': int(row[2]) if row[2] is not None else None
+            }
+
+        except Exception as e:
+            logger.error(f"Errore recupero quota (tipo {request_type_id}): {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    def check_quota_availability(self, hire_history_id, request_type_id, date_start, date_end, holidays, year):
+        """
+        Verifica che la richiesta rispetti la quota annua del tipo di assenza.
+
+        Returns:
+            dict: {'valid', 'message', 'used', 'requested', 'max_days', 'remaining'}
+        """
+        quota = self.get_quota_info(hire_history_id, request_type_id, year)
+        if quota is None:
+            return {'valid': True, 'message': '', 'used': None, 'requested': None,
+                    'max_days': None, 'remaining': None}
+
+        requested = self.calculate_working_days(date_start, date_end, holidays)
+
+        if requested > quota['remaining']:
+            message = (
+                f"ATEN\u021aIE: Nu mai ave\u021bi zile disponibile pentru acest tip de absen\u021b\u0103!\n\n"
+                f"Zile utilizate \u00een {year}: {quota['used']} din {quota['max_days']}.\n"
+                f"Zile r\u0103mase: {quota['remaining']}.\n"
+                f"A\u021bi solicitat {requested} zile."
+            )
+            logger.warning(
+                f"Quota superata per tipo {request_type_id}: richiesti {requested} > residui {quota['remaining']}"
+            )
+            return {
+                'valid': False,
+                'message': message,
+                'used': quota['used'],
+                'requested': requested,
+                'max_days': quota['max_days'],
+                'remaining': quota['remaining']
+            }
+
+        return {
+            'valid': True,
+            'message': '',
+            'used': quota['used'],
+            'requested': requested,
+            'max_days': quota['max_days'],
+            'remaining': quota['remaining']
+        }
+
+    def get_docs_deadline_days(self, request_type_id):
+        """Giorni concessi per presentare la documentazione (AbsenceRules.DocsDeadlineDays)."""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                SELECT DocsDeadlineDays
+                FROM [Employee].[dbo].[AbsenceRules]
+                WHERE IDRequestType = ? AND DateOut IS NULL
+            """, (request_type_id,))
+            row = cursor.fetchone()
+            if row and row[0] is not None:
+                return int(row[0])
+        except Exception as e:
+            logger.error(f"Errore lettura DocsDeadlineDays (tipo {request_type_id}): {e}")
+        return DEFAULT_DOCS_DEADLINE_DAYS
+
+    def compute_urgent_recovery_deadline(self, recovery_period, date_start):
+        """
+        Data limite entro cui recuperare i giorni di assenza urgente:
+        - MONTH: fine del mese della data di inizio assenza
+        - YEAR:  fine dell'anno lavorativo (31.12 dell'anno della data di inizio)
+        """
+        if isinstance(date_start, datetime):
+            date_start = date_start.date()
+
+        if recovery_period == URGENT_RECOVERY_MONTH:
+            # ultimo giorno del mese della data di inizio
+            if date_start.month == 12:
+                return date_start.replace(day=31)
+            return date_start.replace(month=date_start.month + 1, day=1) - timedelta(days=1)
+
+        # YEAR: fine anno lavorativo
+        return date(date_start.year, 12, 31)
+
     def get_available_vacation_days(self, badge_number, year):
         """Calcola giorni di ferie disponibili per un dipendente"""
         try:
@@ -505,58 +710,103 @@ class AbsenceRequestManager:
             self.conn.rollback()
             return None
     
-    def save_absence_request(self, registro_id, hire_history_id, request_type_id, 
+    def save_absence_request(self, registro_id, hire_history_id, request_type_id,
                             date_start, date_end, from_time=None, to_time=None,
-                            username="Unknown", request_type_name="Richiesta Assenza"):
-        """Salva richiesta assenza nel database"""
+                            username="Unknown", request_type_name="Richiesta Assenza",
+                            urgent_recovery_period=None, special_reason=None):
+        """Salva richiesta assenza nel database.
+
+        Per le assenze urgenti (IDRequestType 18) `urgent_recovery_period` è la
+        scelta del dipendente ('MONTH' = recupero nel mese della richiesta,
+        'YEAR' = recupero entro l'anno lavorativo), salvata come parametro in
+        AbsenceRequestes.UrgentRecoveryPeriod insieme alla scadenza calcolata.
+
+        Per le assenze speciali (IDRequestType 19) `special_reason` è il motivo
+        (decesso, matrimonio, ...); la scadenza per la presentazione della
+        documentazione al dep. HR viene calcolata da AbsenceRules.DocsDeadlineDays.
+        """
         try:
             cursor = self.conn.cursor()
-            
+
+            urgent_recovery_deadline = None
+            documentation_deadline = None
+
+            if request_type_id == URGENT_ABSENCE_TYPE_ID:
+                if urgent_recovery_period not in URGENT_RECOVERY_PERIODS:
+                    raise ValueError(
+                        f"Periodo di recupero non valido: {urgent_recovery_period!r} "
+                        f"(attesi: {', '.join(URGENT_RECOVERY_PERIODS)})"
+                    )
+                urgent_recovery_deadline = self.compute_urgent_recovery_deadline(
+                    urgent_recovery_period, date_start
+                )
+            elif request_type_id == SPECIAL_ABSENCE_TYPE_ID:
+                docs_days = self.get_docs_deadline_days(request_type_id)
+                if isinstance(date_start, datetime):
+                    ds = date_start.date()
+                else:
+                    ds = date_start
+                documentation_deadline = ds + timedelta(days=docs_days)
+                if special_reason:
+                    special_reason = str(special_reason).strip()[:200]
+
             # Con pyodbc, devo usare SET NOCOUNT ON per evitare problemi con INSERT + SELECT
             query = """
             SET NOCOUNT ON
-            
+
             INSERT INTO [Employee].[dbo].[AbsenceRequestes]
-                ([RegistroId], [EmployrrHireHistoryId], [IDRequestType], 
-                 [DateStart], [DateEnd], [FromTime], [ToTime], 
-                 [Approved], [ApprovedBy], [DateSys])
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, GETDATE())
-            
+                ([RegistroId], [EmployrrHireHistoryId], [IDRequestType],
+                 [DateStart], [DateEnd], [FromTime], [ToTime],
+                 [Approved], [ApprovedBy], [DateSys],
+                 [UrgentRecoveryPeriod], [UrgentRecoveryDeadline],
+                 [SpecialReason], [DocumentationDeadline])
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, NULL, GETDATE(), ?, ?, ?, ?)
+
             SELECT SCOPE_IDENTITY() AS AbsenceRequestId
             """
-            
-            cursor.execute(query, (registro_id, hire_history_id, request_type_id, 
-                                  date_start, date_end, from_time, to_time))
-            
+
+            cursor.execute(query, (registro_id, hire_history_id, request_type_id,
+                                  date_start, date_end, from_time, to_time,
+                                  urgent_recovery_period, urgent_recovery_deadline,
+                                  special_reason, documentation_deadline))
+
             row = cursor.fetchone()
             absence_request_id = int(row[0]) if row and row[0] else None
-            
+
             self.conn.commit()
-            
+
             # Log dettagliato con orari se presenti
             time_info = ""
             if from_time and to_time:
                 time_info = f", Orario: {from_time} - {to_time}"
-            
-            logger.info(f"Richiesta assenza salvata: AbsenceRequestId = {absence_request_id}{time_info}")
-            
+
+            extra_info = ""
+            if urgent_recovery_period:
+                extra_info = f", Recupero: {urgent_recovery_period} entro {urgent_recovery_deadline}"
+            elif special_reason:
+                extra_info = f", Motivo speciale: {special_reason}, Documenti entro: {documentation_deadline}"
+
+            logger.info(
+                f"Richiesta assenza salvata: AbsenceRequestId = {absence_request_id}{time_info}{extra_info}"
+            )
+
             # Log operazione riuscita
             log_service_operation(
                 self.conn,
                 username=username,
                 service_name=f"Richiesta Assenza - {request_type_name}",
                 success=True,
-                additional_info=f"Periodo: {date_start} - {date_end}{time_info}, RequestId: {absence_request_id}"
+                additional_info=f"Periodo: {date_start} - {date_end}{time_info}{extra_info}, RequestId: {absence_request_id}"
             )
-            
+
             return absence_request_id
-            
+
         except Exception as e:
             logger.error(f"Errore salvataggio richiesta: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             self.conn.rollback()
-            
+
             # Log operazione fallita
             log_service_operation(
                 self.conn,
@@ -565,8 +815,180 @@ class AbsenceRequestManager:
                 success=False,
                 error_message=str(e)
             )
-            
+
             return None
+
+    def get_request_type_name(self, request_type_id):
+        """Nome del tipo di richiesta direttamente dal DB (fallback robusto per email/PDF)."""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                SELECT RequestName
+                FROM [Timeclocking].[dbo].[RequestType]
+                WHERE IDRequestType = ?
+            """, (request_type_id,))
+            row = cursor.fetchone()
+            return str(row[0]) if row and row[0] else 'Tip necunoscut'
+        except Exception as e:
+            logger.error(f"Errore recupero nome tipo richiesta {request_type_id}: {e}")
+            return 'Tip necunoscut'
+
+    def mark_special_documentation_received(self, absence_request_id, received=True, received_date=None):
+        """
+        Registra la presentazione della documentazione per un'assenza speciale.
+        Da usare dal dep. HR quando il dipendente consegna i documenti cartacei.
+        """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("""
+                UPDATE [Employee].[dbo].[AbsenceRequestes]
+                SET [DocumentationReceived] = ?,
+                    [DocumentationReceivedDate] = ?
+                WHERE [AbsenceRequestId] = ?
+                  AND [IDRequestType] = ?
+            """, (1 if received else 0,
+                  received_date if received else None,
+                  absence_request_id,
+                  SPECIAL_ABSENCE_TYPE_ID))
+            updated = cursor.rowcount
+            self.conn.commit()
+            return updated > 0
+        except Exception as e:
+            logger.error(f"Errore registrazione documentazione richiesta {absence_request_id}: {e}")
+            self.conn.rollback()
+            return False
+
+    def convert_expired_special_absences(self, employeer_id=2):
+        """
+        Annulla le assenze speciali per cui la documentazione non è stata
+        presentata entro la scadenza (DocumentationDeadline) e le converte in
+        giorni di congedo ordinario (Concediu odihna, IDRequestType 1), come da
+        regola aziendale.
+
+        Returns:
+            list[dict]: conversioni effettuate in questa esecuzione.
+        """
+        conversions = []
+        try:
+            cursor = self.conn.cursor()
+
+            # Regola di conversione (parametrica in AbsenceRules.ConvertToIDRequestType)
+            cursor.execute("""
+                SELECT ConvertToIDRequestType
+                FROM [Employee].[dbo].[AbsenceRules]
+                WHERE IDRequestType = ? AND DateOut IS NULL
+            """, (SPECIAL_ABSENCE_TYPE_ID,))
+            rule = cursor.fetchone()
+            if not rule or rule[0] is None:
+                logger.info("Nessuna regola di conversione per le assenze speciali: sweep saltato")
+                return conversions
+            convert_to_type = int(rule[0])
+
+            # Richieste speciali scadute senza documenti, non ancora convertite né rifiutate
+            cursor.execute("""
+                SELECT ar.AbsenceRequestId,
+                       ar.EmployrrHireHistoryId,
+                       ar.DateStart,
+                       ar.DateEnd,
+                       ar.DocumentationDeadline,
+                       ISNULL(ar.SpecialReason, ''),
+                       UPPER(e.EmployeeSurname + ' ' + e.EmployeeName) AS EmployeeName
+                FROM [Employee].[dbo].[AbsenceRequestes] ar
+                INNER JOIN [Employee].[dbo].[EmployeeHireHistory] h
+                    ON ar.EmployrrHireHistoryId = h.EmployeeHireHistoryId
+                INNER JOIN [Employee].[dbo].[Employees] e
+                    ON h.EmployeeId = e.EmployeeId
+                WHERE ar.IDRequestType = ?
+                  AND ISNULL(ar.DocumentationReceived, 0) = 0
+                  AND ISNULL(ar.ConvertedToOrdinary, 0) = 0
+                  AND (ar.Rejected IS NULL OR ar.Rejected = 0)
+                  AND ar.DocumentationDeadline IS NOT NULL
+                  AND CAST(GETDATE() AS date) > ar.DocumentationDeadline
+            """, (SPECIAL_ABSENCE_TYPE_ID,))
+            rows = cursor.fetchall()
+
+            for row in rows:
+                absence_request_id = row[0]
+                hire_history_id = row[1]
+                date_start = row[2]
+                date_end = row[3]
+                docs_deadline = row[4]
+                special_reason = row[5]
+                employee_name = row[6]
+
+                try:
+                    # 1. Crea entry registro per la nuova richiesta di congedo ordinario
+                    registro_id = self.create_registry_entry(
+                        year=datetime.now().year,
+                        request_date=datetime.now(),
+                        issued_by="Sistem HR - conversie automata",
+                        employeer_id=employeer_id
+                    )
+                    if not registro_id:
+                        raise Exception("creazione registro fallita")
+
+                    # 2. Inserisce la richiesta di congedo ordinario equivalente
+                    cursor.execute("""
+                        SET NOCOUNT ON
+                        INSERT INTO [Employee].[dbo].[AbsenceRequestes]
+                            ([RegistroId], [EmployrrHireHistoryId], [IDRequestType],
+                             [DateStart], [DateEnd], [Approved], [ApprovedBy], [DateSys])
+                        VALUES (?, ?, ?, ?, ?, 0, NULL, GETDATE())
+                        SELECT SCOPE_IDENTITY() AS NewRequestId
+                    """, (registro_id, hire_history_id, convert_to_type, date_start, date_end))
+                    new_row = cursor.fetchone()
+                    new_request_id = int(new_row[0]) if new_row and new_row[0] else None
+
+                    if not new_request_id:
+                        raise Exception("inserimento richiesta di conversione fallito")
+
+                    # 3. Annulla la richiesta speciale e collega la conversione
+                    refuse_motive = (
+                        f"Anulat\u0103: documenta\u021bia justificativ\u0103 nu a fost prezentat\u0103 "
+                        f"\u00een termen de 5 zile (p\u00e2n\u0103 la {docs_deadline.strftime('%d.%m.%Y') if docs_deadline else 'N/A'}). "
+                        f"Transformat\u0103 automat \u00een zile de concediu odihn\u0103 (cererea nr. intern {new_request_id})."
+                    )
+                    cursor.execute("""
+                        UPDATE [Employee].[dbo].[AbsenceRequestes]
+                        SET [Rejected] = 1,
+                            [RefuseMotive] = ?,
+                            [ConvertedToOrdinary] = 1,
+                            [ConvertedToOrdinaryDate] = GETDATE(),
+                            [ConvertedAbsenceRequestId] = ?
+                        WHERE [AbsenceRequestId] = ?
+                          AND ISNULL([ConvertedToOrdinary], 0) = 0
+                    """, (refuse_motive, new_request_id, absence_request_id))
+
+                    self.conn.commit()
+
+                    conversions.append({
+                        'absence_request_id': absence_request_id,
+                        'new_request_id': new_request_id,
+                        'hire_history_id': hire_history_id,
+                        'employee_name': employee_name,
+                        'date_start': date_start,
+                        'date_end': date_end,
+                        'docs_deadline': docs_deadline,
+                        'special_reason': special_reason
+                    })
+                    logger.info(
+                        f"[SWEEP SPECIALI] Richiesta {absence_request_id} di {employee_name} "
+                        f"annullata e convertita in congedo ordinario ({new_request_id})"
+                    )
+                except Exception as inner_e:
+                    logger.error(
+                        f"[SWEEP SPECIALI] Errore conversione richiesta {absence_request_id}: {inner_e}"
+                    )
+                    self.conn.rollback()
+                    continue
+
+        except Exception as e:
+            logger.error(f"[SWEEP SPECIALI] Errore recupero richieste scadute: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+        return conversions
+
     
     def get_manager_emails(self, employee_hire_history_id):
         """
@@ -786,7 +1208,13 @@ class AbsenceRequestManager:
                 ar.RefuseMotive,
                 ae.CdcId,
                 ae.CdcDescription,
-                ae.FunctionCode
+                ae.FunctionCode,
+                ar.UrgentRecoveryPeriod,
+                ar.UrgentRecoveryDeadline,
+                ar.SpecialReason,
+                ar.DocumentationDeadline,
+                ISNULL(ar.DocumentationReceived, 0) AS DocumentationReceived,
+                ISNULL(ar.ConvertedToOrdinary, 0) AS ConvertedToOrdinary
             FROM [Employee].[dbo].[AbsenceRequestes] ar
             INNER JOIN AllowedEmployees ae
                 ON ae.EmployeeHireHistoryId = ar.EmployrrHireHistoryId
@@ -842,6 +1270,12 @@ class AbsenceRequestManager:
                     'cdc_id': int(row[13]) if row[13] is not None else None,
                     'cdc_description': row[14],
                     'function_code': int(row[15]) if row[15] is not None else None,
+                    'urgent_recovery_period': row[16],
+                    'urgent_recovery_deadline': row[17].isoformat() if row[17] else None,
+                    'special_reason': row[18],
+                    'documentation_deadline': row[19].isoformat() if row[19] else None,
+                    'documentation_received': bool(row[20]),
+                    'converted_to_ordinary': bool(row[21]),
                     'can_take_action': status == 'pending'
                 })
 
@@ -1031,7 +1465,23 @@ class AbsenceRequestManager:
             y -= 25
             c.setFont(self.font_name, 10)
             c.drawString(50, y, f"Tip absență: {request_data['type_name']}")
-            
+
+            # Dettagli assenza urgente: periodo di recupero scelto dal dipendente
+            if request_data.get('urgent_recovery_period'):
+                y -= 20
+                if request_data['urgent_recovery_period'] == URGENT_RECOVERY_MONTH:
+                    recovery_text = "Recuperare: în luna solicitării"
+                else:
+                    recovery_text = "Recuperare: până la sfârșitul anului lucrător"
+                if request_data.get('urgent_recovery_deadline'):
+                    recovery_text += f" (până la {request_data['urgent_recovery_deadline'].strftime('%d.%m.%Y')})"
+                c.drawString(50, y, recovery_text)
+
+            # Dettagli assenza speciale: motivo e obbligo di documentazione
+            if request_data.get('special_reason'):
+                y -= 20
+                c.drawString(50, y, f"Motiv special: {request_data['special_reason']}")
+
             y -= 20
             c.drawString(50, y, f"Perioada: {request_data['date_start'].strftime('%d.%m.%Y')} - {request_data['date_end'].strftime('%d.%m.%Y')}")
             
@@ -1073,7 +1523,26 @@ class AbsenceRequestManager:
             for line in text_lines:
                 c.drawString(70, y, line)
                 y -= 15
-            
+
+            # Avviso obbligatorio per assenze speciali: documentazione entro la scadenza
+            if request_data.get('documentation_deadline'):
+                y -= 15
+                c.setFont(self.font_bold, 10)
+                c.drawString(50, y, "DOCUMENTAȚIE OBLIGATORIE (motiv special):")
+                y -= 15
+                c.setFont(self.font_name, 10)
+                dl = request_data['documentation_deadline']
+                dl_str = dl.strftime('%d.%m.%Y') if hasattr(dl, 'strftime') else str(dl)
+                docs_lines = [
+                    f"Prezentați documentele justificative la departamentul HR până la {dl_str}",
+                    "(în termen de 5 zile de la data cererii).",
+                    "În lipsa documentației, cererea va fi anulată și transformată",
+                    "automat în zile de concediu odihnă."
+                ]
+                for line in docs_lines:
+                    c.drawString(70, y, line)
+                    y -= 15
+
             # Footer
             y = 80
             c.setFont(self.font_name, 8)

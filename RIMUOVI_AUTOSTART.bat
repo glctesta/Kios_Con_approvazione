@@ -1,54 +1,91 @@
 @echo off
 REM ============================================================
-REM RIMUOVI_AUTOSTART.bat
-REM Rimuove il task di avvio automatico dal Task Scheduler
-REM e ferma il watchdog in esecuzione.
+REM RIMUOVI_AUTOSTART.bat  (v2 - SENZA DIRITTI DI AMMINISTRATORE)
+REM ------------------------------------------------------------
+REM Rimuove la ripartenza automatica del kiosk HR:
+REM   - valore KioskHR_Autostart dalla chiave HKCU\...\Run
+REM   - file KioskHR_Autostart.vbs da 'Esecuzione automatica'
+REM   - vecchio task schedulato KioskHR_Watchdog (se presente)
+REM Su richiesta, arresta anche i processi del kiosk in esecuzione.
+REM Nessun privilegio di amministratore richiesto.
 REM ============================================================
 
+setlocal EnableDelayedExpansion
+set "INSTALL_LOG=%~dp0logs\autostart_install.log"
+
 echo.
 echo ============================================================
-echo   KIOSK HR - RIMOZIONE AVVIO AUTOMATICO
+echo   KIOSK HR - RIMOZIONE AVVIO AUTOMATICO (senza admin)
 echo ============================================================
 echo.
 
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo [ERRORE] Questo script deve essere eseguito come Amministratore!
-    pause
-    exit /b 1
-)
+set "RUN_KEY=HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
+set "RUN_VALUE=KioskHR_Autostart"
+set "STARTUP_VBS=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\KioskHR_Autostart.vbs"
 
-set "TASK_NAME=KioskHR_Watchdog"
-
-REM Ferma il task se in esecuzione
-echo Arresto del watchdog in esecuzione...
-schtasks /end /tn "%TASK_NAME%" >nul 2>&1
-
-REM Termina anche eventuali processi Python del kiosk
-echo Terminazione processi Flask/watchdog...
-taskkill /f /fi "WINDOWTITLE eq kiosk_watchdog*" >nul 2>&1
-for /f "tokens=2" %%p in ('wmic process where "commandline like '%%kiosk_watchdog%%'" get processid /format:list 2^>nul ^| findstr "="') do (
-    taskkill /f /pid %%p >nul 2>&1
-)
-for /f "tokens=2" %%p in ('wmic process where "commandline like '%%app.py%%'" get processid /format:list 2^>nul ^| findstr "="') do (
-    taskkill /f /pid %%p >nul 2>&1
-)
-
-REM Rimuovi il task
-schtasks /query /tn "%TASK_NAME%" >nul 2>&1
+REM --- 1) Valore di registro HKCU Run ---
+echo [1/4] Rimozione chiave di registro...
+reg delete "%RUN_KEY%" /v %RUN_VALUE% /f >nul 2>&1
+reg query "%RUN_KEY%" /v %RUN_VALUE% >nul 2>&1
 if %errorLevel% equ 0 (
-    schtasks /delete /tn "%TASK_NAME%" /f
-    echo Task '%TASK_NAME%' rimosso.
+    echo [ERRORE] Il valore di registro risulta ancora presente!
 ) else (
-    echo Task '%TASK_NAME%' non trovato ^(gia' rimosso^).
+    echo [OK] Valore %RUN_VALUE% rimosso da HKCU\...\Run.
 )
+
+REM --- 2) File in Esecuzione automatica ---
+echo [2/4] Rimozione file da 'Esecuzione automatica'...
+if exist "%STARTUP_VBS%" (
+    del /f /q "%STARTUP_VBS%" >nul 2>&1
+    if exist "%STARTUP_VBS%" (
+        echo [ERRORE] Impossibile eliminare %STARTUP_VBS%
+    ) else (
+        echo [OK] File KioskHR_Autostart.vbs eliminato.
+    )
+) else (
+    echo [OK] Nessun file da rimuovere ^(gia' assente^).
+)
+
+REM --- 3) Vecchio task amministrativo (se presente) ---
+echo [3/4] Controllo vecchio task 'KioskHR_Watchdog'...
+schtasks /query /tn "KioskHR_Watchdog" >nul 2>&1
+if %errorLevel% equ 0 (
+    schtasks /delete /tn "KioskHR_Watchdog" /f >nul 2>&1
+    if !errorLevel! equ 0 (
+        echo [OK] Task rimosso.
+    ) else (
+        echo [AVVISO] Task presente ma non rimovibile senza admin. Rimuoverlo con:
+        echo          schtasks /delete /tn KioskHR_Watchdog /f   ^(come admin^)
+    )
+) else (
+    echo [OK] Nessun vecchio task presente.
+)
+
+REM --- 4) Arresto processi kiosk (opzionale) ---
+echo [4/4] Arresto processi in esecuzione...
+choice /C SN /M "Arrestare ora supervisore/server kiosk (S/N)"
+if errorlevel 2 goto :skip_stop
+
+REM Termina supervisore, vecchio watchdog e server Flask (Get-CimInstance:
+REM wmic non e' piu' disponibile sulle versioni recenti di Windows)
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='pythonw.exe' OR Name='python.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match 'kiosk_supervisor|kiosk_watchdog|app[.]py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" >nul 2>&1
+echo [OK] Supervisore e server Flask arrestati.
+
+choice /C SN /M "Chiudere anche il browser kiosk Chrome/Edge (S/N)"
+if errorlevel 2 goto :skip_stop
+taskkill /F /IM chrome.exe >nul 2>&1
+taskkill /F /IM msedge.exe >nul 2>&1
+echo [OK] Browser chiusi.
+
+:skip_stop
+if exist "%~dp0logs" echo [%date% %time%] REMOVE autostart >> "%INSTALL_LOG%"
 
 echo.
 echo ============================================================
 echo   AVVIO AUTOMATICO DISABILITATO
 echo ============================================================
 echo.
-echo Il server Kiosk HR non partira' piu' automaticamente.
+echo Il kiosk HR non partira' piu' automaticamente al logon.
 echo Per riabilitarlo esegui: INSTALLA_AUTOSTART.bat
 echo.
 pause

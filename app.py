@@ -3,7 +3,7 @@ Applicazione Web per Generazione Certificati/Adeverințe
 Sostituisce la form VBA di Access con un'interfaccia web moderna
 """
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import os
 import sys
@@ -20,7 +20,15 @@ from db_connection import DatabaseConnection
 from config_manager import ConfigManager
 from certificate_generator import CertificateGenerator
 from absence_report import AbsenceReportGenerator
-from absence_request import AbsenceRequestManager
+from absence_request import (
+    AbsenceRequestManager,
+    VACATION_REQUEST_TYPE_ID,
+    URGENT_ABSENCE_TYPE_ID,
+    SPECIAL_ABSENCE_TYPE_ID,
+    URGENT_RECOVERY_PERIODS,
+    URGENT_RECOVERY_MONTH,
+    URGENT_RECOVERY_YEAR
+)
 from badge_reader import BadgeReader
 from kiosk_request_logger import KioskRequestLogger
 from utils import send_email, get_email_recipients
@@ -743,9 +751,135 @@ def calculate_working_days():
             'working_days': working_days,
             'total_days': (date_end - date_start).days + 1
         })
-        
+
     except Exception as e:
         logger.error(f"Errore calcolo giorni lavorativi: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/absence-quota', methods=['POST'])
+def absence_quota():
+    """Quota annua residua per tipi di assenza con limite per legge (urgenti/speciali)."""
+    try:
+        data = request.json
+        badge_number = data.get('badgeNumber', '').strip()
+        request_type_id = data.get('requestTypeId')
+
+        if not badge_number or not request_type_id:
+            return jsonify({'success': False, 'error': 'Badge o tipo richiesta non forniti'}), 400
+
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+
+        badge_reader = BadgeReader(conn)
+        normalized_badge = badge_reader.normalize_badge_number(badge_number)
+        employee_data = badge_reader.get_employee_by_badge(normalized_badge)
+        if not employee_data:
+            return jsonify({'success': False, 'error': 'Dipendente non trovato'}), 404
+
+        request_manager = AbsenceRequestManager(conn)
+        quota = request_manager.get_quota_info(
+            employee_data['hire_history_id'],
+            request_type_id,
+            datetime.now().year
+        )
+
+        if quota is None:
+            return jsonify({'success': False, 'error': 'Tipo di assenza senza quota annua'}), 404
+
+        return jsonify({
+            'success': True,
+            'request_type_id': request_type_id,
+            'max_days': quota['max_days'],
+            'used': quota['used'],
+            'remaining': quota['remaining'],
+            'docs_deadline_days': quota['docs_deadline_days']
+        })
+
+    except Exception as e:
+        logger.error(f"Errore recupero quota assenza: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/hr/special-docs-sweep', methods=['POST'])
+def special_docs_sweep():
+    """
+    Esegue il controllo delle assenze speciali scadute senza documentazione:
+    le annulla e le converte in giorni di congedo ordinario.
+    Accessibile ai manager autenticati (stesso token delle approvazioni).
+    """
+    try:
+        _, manager_session = _get_manager_auth_from_request()
+        if not manager_session:
+            return jsonify({'success': False, 'error': 'Sessione non autenticata'}), 401
+
+        conn = db_connection.connect()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Errore connessione database'}), 500
+
+        request_manager = AbsenceRequestManager(conn)
+        conversions = request_manager.convert_expired_special_absences(employeer_id=EMPLOYER_ID)
+
+        # Notifica email HR (best-effort, non blocca l'operazione)
+        if conversions:
+            try:
+                recipients = get_email_recipients(conn, 'Sys_Email_HR') or [FALLBACK_EMAIL]
+                rows_html = ''.join(
+                    f"<tr>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['employee_name']}</td>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['date_start'].strftime('%d.%m.%Y')} - {c['date_end'].strftime('%d.%m.%Y')}</td>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['special_reason'] or '-'}</td>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['docs_deadline'].strftime('%d.%m.%Y')}</td>"
+                    f"</tr>"
+                    for c in conversions
+                )
+                body = f"""
+                <html><body style="font-family: Arial, sans-serif;">
+                    <h2 style="color: #dc2626;">Conversie automată: absențe speciale fără documentație</h2>
+                    <p>Următoarele cerere de absență pentru motive speciale au fost anulate
+                    (documentația nu a fost prezentată în termen de 5 zile) și transformate
+                    în zile de concediu odihnă:</p>
+                    <table style="border-collapse: collapse;">
+                        <tr>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Angajat</th>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Perioada</th>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Motiv</th>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Scadență documentație</th>
+                        </tr>
+                        {rows_html}
+                    </table>
+                    <p style="font-size:12px;color:#718096;">Email generat automat de sistemul Kiosk HR.</p>
+                </body></html>
+                """
+                send_email(
+                    recipients=recipients,
+                    subject=f"[Kiosk HR] {len(conversions)} absențe speciale convertite în concediu odihnă",
+                    body=body,
+                    is_html=True
+                )
+            except Exception as email_error:
+                logger.warning(f"[SWEEP SPECIALI] Invio email HR fallito: {email_error}")
+
+        return jsonify({
+            'success': True,
+            'converted': len(conversions),
+            'conversions': [
+                {
+                    'absence_request_id': c['absence_request_id'],
+                    'new_request_id': c['new_request_id'],
+                    'employee': c['employee_name'],
+                    'date_start': c['date_start'].isoformat(),
+                    'date_end': c['date_end'].isoformat(),
+                    'docs_deadline': c['docs_deadline'].isoformat() if c['docs_deadline'] else None
+                } for c in conversions
+            ]
+        })
+
+    except Exception as e:
+        logger.error(f"Errore sweep assenze speciali: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -763,6 +897,10 @@ def submit_absence_request():
         date_end_str = data.get('dateEnd')
         from_time = data.get('fromTime')  # Orari per assenze parziali
         to_time = data.get('toTime')
+        # Assenze urgenti: scelta del dipendente per il recupero ('MONTH' | 'YEAR')
+        urgent_recovery_period = (data.get('urgentRecoveryPeriod') or '').strip().upper() or None
+        # Assenze speciali: motivo (decesso, matrimonio, ...)
+        special_reason = (data.get('specialReason') or '').strip() or None
         
         # Validazioni
         if not badge_number:
@@ -846,14 +984,54 @@ def submit_absence_request():
         # Verifica regole DayNoZone (preavviso minimo richiesto)
         logger.info("Verifica regole DayNoZone...")
         validation_result = request_manager.validate_absence_date_rule(request_type_id, date_start)
-        
+
         if not validation_result['valid']:
             logger.warning(f"Validazione DayNoZone fallita: {validation_result['message']}")
             return jsonify({
                 'success': False,
                 'error': validation_result['message']
             }), 400
-        
+
+        # ── Verifiche specifiche assenze urgenti / speciali ──────────────────
+        urgent_recovery_deadline = None
+        documentation_deadline = None
+
+        if request_type_id in (URGENT_ABSENCE_TYPE_ID, SPECIAL_ABSENCE_TYPE_ID):
+            # Quota annua per legge: 10 giorni urgenti / 5 giorni speciali (parametro in AbsenceRules)
+            logger.info(f"Verifica quota annua per tipo {request_type_id}...")
+            quota_result = request_manager.check_quota_availability(
+                hire_history_id, request_type_id, date_start, date_end, holidays, year
+            )
+            if not quota_result['valid']:
+                logger.warning(f"Quota annua superata per tipo {request_type_id}")
+                return jsonify({
+                    'success': False,
+                    'error': quota_result['message']
+                }), 400
+
+        if request_type_id == URGENT_ABSENCE_TYPE_ID:
+            if urgent_recovery_period not in URGENT_RECOVERY_PERIODS:
+                return jsonify({
+                    'success': False,
+                    'error': (
+                        'Selecta\u021bi perioada de recuperare a zilelor de absen\u021b\u0103 urgent\u0103:\n'
+                        '\u00een luna solicit\u0103rii sau p\u00e2n\u0103 la sf\u00e2r\u0219itul anului lucr\u0103tor.'
+                    )
+                }), 400
+            urgent_recovery_deadline = request_manager.compute_urgent_recovery_deadline(
+                urgent_recovery_period, date_start
+            )
+
+        if request_type_id == SPECIAL_ABSENCE_TYPE_ID:
+            if not special_reason:
+                return jsonify({
+                    'success': False,
+                    'error': 'Selecta\u021bi motivul special (deces, c\u0103s\u0103torie etc.).'
+                }), 400
+            documentation_deadline = date_start + timedelta(
+                days=request_manager.get_docs_deadline_days(request_type_id)
+            )
+
         # Crea entry nel registro
         logger.info("Creazione entry registro...")
         registro_id = request_manager.create_registry_entry(year, request_date, employee_name)
@@ -863,17 +1041,25 @@ def submit_absence_request():
         
         logger.info(f"Registro creato: {registro_id}")
         
-        # Recupera nome tipo richiesta (prima di usarlo)
+        # Recupera nome tipo richiesta (prima di usarlo).
+        # Il tipo di congedo DEVE sempre comparire nell'email al superiore e nel PDF:
+        # se la lista non fosse disponibile si recupera il nome direttamente dal DB.
         request_types = request_manager.get_request_types()
-        request_type_name = next((rt['name'] for rt in request_types if rt['id'] == request_type_id), 'Sconosciuto')
-        
+        request_type_name = next(
+            (rt['name'] for rt in request_types if rt['id'] == request_type_id), None
+        )
+        if not request_type_name:
+            request_type_name = request_manager.get_request_type_name(request_type_id)
+
         # Salva richiesta assenza
         logger.info("Salvataggio richiesta assenza...")
         absence_request_id = request_manager.save_absence_request(
             registro_id, hire_history_id, request_type_id, date_start, date_end,
             from_time=from_time, to_time=to_time,  # Passa orari
             username=employee_name,
-            request_type_name=request_type_name
+            request_type_name=request_type_name,
+            urgent_recovery_period=urgent_recovery_period if request_type_id == URGENT_ABSENCE_TYPE_ID else None,
+            special_reason=special_reason if request_type_id == SPECIAL_ABSENCE_TYPE_ID else None
         )
         
         if not absence_request_id:
@@ -899,7 +1085,11 @@ def submit_absence_request():
             'type_name': request_type_name,
             'date_start': date_start,
             'date_end': date_end,
-            'working_days': working_days
+            'working_days': working_days,
+            'urgent_recovery_period': urgent_recovery_period if request_type_id == URGENT_ABSENCE_TYPE_ID else None,
+            'urgent_recovery_deadline': urgent_recovery_deadline,
+            'special_reason': special_reason if request_type_id == SPECIAL_ABSENCE_TYPE_ID else None,
+            'documentation_deadline': documentation_deadline
         }
         
         pdf_path = request_manager.generate_confirmation_pdf(employee_data_pdf, request_data_pdf, registry_info)
@@ -930,15 +1120,42 @@ def submit_absence_request():
             logger.info(f"[SUBMIT_ABSENCE] Invio email a: {manager_emails} (numero: {len(manager_emails)})")
             
             # Prepara email HTML
-            subject = f"Nouă cerere de absență - {registry_info['doc_name']}"
-            
+            subject = f"Nouă cerere de absență ({request_type_name}) - {registry_info['doc_name']}"
+
+            # Righe aggiuntive per assenze urgenti / speciali (tipo di congedo sempre ben visibile)
+            type_specific_rows = ''
+            if request_type_id == URGENT_ABSENCE_TYPE_ID:
+                if urgent_recovery_period == URGENT_RECOVERY_MONTH:
+                    recovery_label = 'În luna solicitării'
+                else:
+                    recovery_label = 'Până la sfârșitul anului lucrător'
+                recovery_dl = urgent_recovery_deadline.strftime('%d.%m.%Y') if urgent_recovery_deadline else '-'
+                type_specific_rows += f'''
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold;">Recuperare zile urgente:</td>
+                        <td style="padding: 8px; color: #667eea; font-weight: bold;">{recovery_label} (până la {recovery_dl})</td>
+                    </tr>
+                '''
+            elif request_type_id == SPECIAL_ABSENCE_TYPE_ID:
+                docs_dl = documentation_deadline.strftime('%d.%m.%Y') if documentation_deadline else '-'
+                type_specific_rows += f'''
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold;">Motiv special:</td>
+                        <td style="padding: 8px; color: #667eea; font-weight: bold;">{special_reason or '-'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold;">Documentație:</td>
+                        <td style="padding: 8px; color: #dc2626; font-weight: bold;">⚠️ Obligatorie la HR până la {docs_dl} (5 zile), altfel cererea se anulează și devine concediu odihnă</td>
+                    </tr>
+                '''
+
             body = f"""
             <html>
             <body style="font-family: Arial, sans-serif;">
                 <h2 style="color: #667eea;">Nouă Cerere de Absență</h2>
-                
+
                 <p>S-a înregistrat o nouă cerere de absență care necesită aprobare:</p>
-                
+
                 <table style="border-collapse: collapse; margin: 20px 0;">
                     <tr>
                         <td style="padding: 8px; font-weight: bold;">Număr cerere:</td>
@@ -953,9 +1170,10 @@ def submit_absence_request():
                         <td style="padding: 8px;">{employee_name}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 8px; font-weight: bold;">Tip absență:</td>
-                        <td style="padding: 8px;">{request_type_name}</td>
+                        <td style="padding: 8px; font-weight: bold; font-size: 14px;">Tip absență:</td>
+                        <td style="padding: 8px; color: #667eea; font-weight: bold; font-size: 14px;">{request_type_name}</td>
                     </tr>
+                    {type_specific_rows}
                     <tr>
                         <td style="padding: 8px; font-weight: bold;">Perioada:</td>
                         <td style="padding: 8px;">{date_start.strftime('%d.%m.%Y')} - {date_end.strftime('%d.%m.%Y')}</td>
@@ -971,13 +1189,13 @@ def submit_absence_request():
                         <td style="padding: 8px;">{working_days if working_days else '-'}</td>
                     </tr>
                 </table>
-                
+
                 <p style="color: #f59e0b; font-weight: bold;">⚠️ Această cerere este în așteptare de aprobare.</p>
-                
+
                 <p>Vă rugăm să verificați și să aprobați/respingeți cererea în sistemul de management.</p>
-                
+
                 <hr style="margin: 30px 0; border: 1px solid #e5e7eb;">
-                
+
                 <p style="font-size: 12px; color: #718096;">
                     Acest email a fost generat automat de sistemul Kiosk HR.<br>
                     Nu răspundeți la acest email.
@@ -1005,7 +1223,7 @@ def submit_absence_request():
         
         # Log richiesta kiosk
         kiosk_logger.log_absence_request_submission(badge_number, request_type_name, executed=True)
-        
+
         return jsonify({
             'success': True,
             'request_number': registry_info['doc_name'],
@@ -1013,7 +1231,11 @@ def submit_absence_request():
             'registro_id': registro_id,
             'pdf_path': pdf_path,
             'pdf_url': pdf_url,
-            'pdf_filename': pdf_filename
+            'pdf_filename': pdf_filename,
+            'request_type': request_type_name,
+            'urgent_recovery_period': urgent_recovery_period if request_type_id == URGENT_ABSENCE_TYPE_ID else None,
+            'urgent_recovery_deadline': urgent_recovery_deadline.isoformat() if urgent_recovery_deadline else None,
+            'documentation_deadline': documentation_deadline.isoformat() if documentation_deadline else None
         })
         
     except Exception as e:
@@ -1833,10 +2055,23 @@ def print_news():
 if __name__ == '__main__':
     # Crea directory temp se non esiste
     os.makedirs('temp', exist_ok=True)
-    
+
     # Avvia servizio keep-alive stampante (ogni 5 minuti)
     logger.info("Avvio Printer Keep-Alive service...")
     start_printer_keepalive(interval_seconds=300)
+
+    # Sweep iniziale delle assenze speciali scadute senza documentazione
+    # (il controllo giornaliero programmatico è nel kiosk_reports_service)
+    try:
+        sweep_conn = db_connection.connect()
+        if sweep_conn:
+            sweep_manager = AbsenceRequestManager(sweep_conn)
+            converted = sweep_manager.convert_expired_special_absences(employeer_id=EMPLOYER_ID)
+            if converted:
+                logger.info(f"[SWEEP SPECIALI] {len(converted)} assenze speciali convertite in congedo ordinario all'avvio")
+            sweep_conn.disconnect()
+    except Exception as sweep_error:
+        logger.warning(f"[SWEEP SPECIALI] Sweep all'avvio fallito (non bloccante): {sweep_error}")
     
     try:
         # Avvia server

@@ -2,6 +2,82 @@
 
 Tutte le modifiche rilevanti al progetto saranno documentate in questo file.
 
+## [2.4.1] - 2026-10-16
+
+### 🔄 Ripartenza automatica del kiosk dopo spegnimento — SENZA admin
+
+Ricostruito il sistema di avvio automatico: dopo uno spegnimento (anche per
+interruzione di corrente) il kiosk HR riparte da solo **in modalità kiosk**,
+con registrazione **senza privilegi di amministratore**.
+
+- **`kiosk_supervisor.py`** (nuovo): supervisore che mantiene in vita l'intero
+  kiosk — avvia `app.py` (Python del venv se presente), attende `/api/health`,
+  apre Chrome/Edge `--kiosk --incognito` (niente prompt "ripristina pagine?"
+  dopo un blackout), riavvia il server se crasha (backoff dopo crash ripetuti),
+  riapre la finestra kiosk se viene chiusa. Single-instance tramite socket-lock
+  locale 127.0.0.1:39731. Log rotante su `logs/kiosk_supervisor.log`.
+- **`AVVIO_KIOSK.vbs`** (nuovo): launcher nascosto auto-locante (venv prima,
+  PATH poi) — nessuna finestra console.
+- **`INSTALLA_AUTOSTART.bat`** (riscritto): registrazione **doppia e senza
+  admin** — valore `KioskHR_Autostart` in `HKCU\...\Run` + script generato nella
+  cartella *Esecuzione automatica*. Verifica con read-back del registro,
+  controllo informativo dell'autologon di Windows, avvio di prova con health
+  check, log su `logs/autostart_install.log`. Idempotente; rimuove il vecchio
+  task `KioskHR_Watchdog` quando possibile.
+- **`RIMUOVI_AUTOSTART.bat`** (riscritto): rimozione pulita senza admin
+  (registro + Startup + vecchio task), arresto processi su conferma; usa
+  PowerShell CIM al posto di `wmic` (non più disponibile su Windows 11 recenti).
+- Guida operativa: **`GUIDA_RIAVVIO_AUTOMATICO_KIOSK.md`**.
+- Test eseguiti: py_compile, lock single-instance, scoperta browser, health
+  check, VBS statico e generato (comando corretto e quotato), round-trip
+  `reg add`/`reg query`.
+
+---
+
+## [2.4.0] - 2026-10-16
+
+### 🚨 Nuovi tipi di assenza: urgenti (recuperabili) e motivi speciali
+
+**Assenze urgenti** (`Invoire urgenta (recuperabila)`, IDRequestType 18):
+- Diritto per legge a **10 giorni/anno** per dipendente (parametro `AbsenceRules.MaxDaysPerYear`)
+- I giorni devono essere recuperati **nel mese della richiesta** oppure **entro l'anno
+  lavorativo**: la scelta del dipendente è un parametro salvato nella tabella
+  (`AbsenceRequestes.UrgentRecoveryPeriod` = `MONTH`/`YEAR`) insieme alla scadenza
+  calcolata (`UrgentRecoveryDeadline`)
+
+**Motivi speciali** (`Motive speciale (deces, casatorie)`, IDRequestType 19):
+- **Massimo 5 giorni/anno** per dipendente (decesso, matrimonio, naștere, ...)
+- Documentazione giustificativa da presentare **fisicamente al dep. HR entro 5 giorni**
+  dalla richiesta (parametro `AbsenceRules.DocsDeadlineDays`), pena **annullamento e
+  conversione automatica in giorni di congedo ordinario** (`ConvertToIDRequestType = 1`)
+
+### 🗄️ Migrazione database (applicata con `sql/MIGRAZIONE_ASSENZE_URGENTI_SPECIALI.sql`)
+- `[Timeclocking].[dbo].[RequestType]`: inseriti tipi 18 e 19
+- `[Employee].[dbo].[AbsenceRules]`: + colonne `MaxDaysPerYear`, `DocsDeadlineDays`, `ConvertToIDRequestType` + righe regole per i due tipi
+- `[Employee].[dbo].[AbsenceRequestes]`: + colonne `UrgentRecoveryPeriod`, `UrgentRecoveryDeadline`, `SpecialReason`, `DocumentationDeadline`, `DocumentationReceived`, `DocumentationReceivedDate`, `ConvertedToOrdinary`, `ConvertedToOrdinaryDate`, `ConvertedAbsenceRequestId`
+- `[Employees]` (nuovo programma gestione dipendenti): `app.LeaveTypes` + colonne `RequiresDocumentation`, `DocsDeadlineDays`, `ConvertToLeaveTypeId`, `IsRecoverable` + tipi `AU`/`MS`; `app.LeaveRequests` + stesse colonne di tracciatura
+
+### 🖥️ Kiosk
+- Form cerere absență: selettore **perioada de recuperare** (assenze urgenti),
+  selettore **motiv special** + dettaglio + avviso documentazione obbligatoria
+- Card quota residua (X din 10 / X din 5) e blocco invio se quota superata
+- PDF di conferma: righe recupero/motivo speciale + avviso scadenza documenti
+- Email al superiore: **tip absență sempre in evidenza** (fallback recupero nome da DB)
+  + righe recupero urgente / motivo speciale / scadenza documentazione
+- Nuovi endpoint: `POST /api/absence-quota` (quota residua),
+  `POST /api/hr/special-docs-sweep` (conversione manuale, riservata ai manager)
+
+### ⏰ Conversione automatica (documentazione mancante)
+- `service_kiosk_reports.py`: job giornaliero alle 06:30 → annulla le assenze speciali
+  scadute senza documenti e le converte in congedo ordinario + email HR
+- Sweep aggiuntivo all'avvio di `app.py` (best-effort)
+
+### 📰 News
+- Inserito annuncio dei nuovi tipi di assenza con scadenza **03.01.2027**
+  (`Employee.dbo.News` NewId 783 + `Employees.app.News` NewsId 656)
+
+---
+
 ## [2.3.7] - 2026-07-20
 
 ### ⌨️ Timeout adattivo per inserimento badge manuale

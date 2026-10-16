@@ -1,19 +1,19 @@
 # ========================================
 # KIOSK HR - Creazione Pacchetto Deploy
-# Versione: 2.3.7
-# Data: 2026-07-20
+# Versione: 2.4.1
+# Data: 2026-10-16
 # ========================================
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  KIOSK HR - Creazione Pacchetto" -ForegroundColor Cyan
-Write-Host "  Versione 2.3.7" -ForegroundColor Cyan
+Write-Host "  Versione 2.4.1" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Imposta nome pacchetto con timestamp
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$packageName = "Kiosk_HR_v2.3.7_$timestamp.zip"
+$packageName = "Kiosk_HR_v2.4.1_$timestamp.zip"
 
 Write-Host "[1/7] Preparazione directory temporanea..." -ForegroundColor Yellow
 if (Test-Path "deploy_temp") {
@@ -30,11 +30,14 @@ $pythonFiles = @(
     "absence_request.py",
     "badge_reader.py",
     "certificate_generator.py",
+    "company_config.py",
     "config_manager.py",
     "db_connection.py",
     "digital_signature.py",
     "email_connector.py",
     "kiosk_request_logger.py",
+    "kiosk_supervisor.py",
+    "kiosk_watchdog.py",
     "offline_logger.py",
     "pdf_digital_signer.py",
     "pdf_printer.py",
@@ -123,11 +126,17 @@ $scriptFiles = @(
     "START_SISTEMA_KIOSK.bat",
     "START_KIOSK_REPORTS_SERVICE.bat",
     "AGGIORNA_FIRMA.bat",
-    "MOSTRA_IP_KIOSK.bat"
+    "MOSTRA_IP_KIOSK.bat",
+    "START_KIOSK.bat",
+    "INSTALLA_AUTOSTART.bat",
+    "RIMUOVI_AUTOSTART.bat",
+    "AVVIO_KIOSK.vbs",
+    "AVVIA_TUTTO.BAT"
 )
 
 $docFiles = @(
     "README.md",
+    "CHANGELOG.md",
     "GUIDA_INSTALLAZIONE.md",
     "INSTALLAZIONE_MANUALE.md",
     "DEPLOYMENT.md",
@@ -137,15 +146,16 @@ $docFiles = @(
     "GUIDA_NEWS_SLIDESHOW.md",
     "CONFIGURAZIONE_RETE.md",
     "STAMPA_AUTOMATICA.md",
-    "RELEASE_NOTES_v2.3.7.md",
-    "RELEASE_NOTES_v2.3.6.md",
-    "RELEASE_NOTES_v2.3.5.md",
-    "RELEASE_NOTES_v2.3.4.md",
-    "RELEASE_NOTES_v2.3.3.md",
-    "RELEASE_NOTES_v2.2.1.md",
-    "RELEASE_NOTES_v2.2.0.md",
-    "RELEASE_NOTES_v2.1.1.md"
+    "GUIDA_RIAVVIO_AUTOMATICO_KIOSK.md",
+    "IMPLEMENTAZIONE_ASSENZE_URGENTI_SPECIALI.md"
 )
+
+# Copia la migrazione SQL (assenze urgenti/speciali: Employee + Employees)
+if (Test-Path "sql") {
+    New-Item -ItemType Directory -Path "deploy_temp\sql" -Force | Out-Null
+    Copy-Item "sql\*" "deploy_temp\sql\" -Force
+    Write-Host "[OK] Migrazioni SQL copiate (sql/)" -ForegroundColor Green
+}
 
 $copiedDocs = 0
 foreach ($file in ($scriptFiles + $docFiles)) {
@@ -252,4 +262,7 @@ Write-Host "[OK] Pulizia completata" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "Premere un tasto per continuare..." -ForegroundColor Gray
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+if (-not [Console]::IsInputRedirected) {
+    # Pausa solo quando lanciato interattivamente con un doppio clic
+    try { $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") } catch {}
+}

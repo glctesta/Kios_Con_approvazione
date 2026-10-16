@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config_manager import ConfigManager
 from db_connection import DatabaseConnection
 from email_connector import EmailSender
-from company_config import REPORT_RECIPIENTS, EMAIL_FROM, COMPANY_NAME
+from company_config import REPORT_RECIPIENTS, EMAIL_FROM, COMPANY_NAME, EMPLOYER_ID
+from absence_request import AbsenceRequestManager
 
 # Configurazione logging
 logging.basicConfig(
@@ -540,6 +541,71 @@ class KioskReportsService:
         else:
             logger.debug(f"Oggi è il giorno {today.day} - nessun report da inviare")
 
+    def check_and_convert_special_absences(self):
+        """
+        Controllo giornaliero delle assenze speciali (motivi speciali: deces,
+        casatorie etc.): quelle con documentazione non presentata entro la
+        scadenza (5 giorni dalla richiesta) vengono annullate e convertite in
+        giorni di congedo ordinario. Notifica via email agli destinatari HR.
+        """
+        try:
+            logger.info("Controllo assenze speciali scadute senza documentazione...")
+
+            conn = self.db_connection.connect()
+            if not conn:
+                logger.error("Impossibile connettersi al database per lo sweep assenze speciali")
+                return
+
+            request_manager = AbsenceRequestManager(conn)
+            conversions = request_manager.convert_expired_special_absences(employeer_id=EMPLOYER_ID)
+
+            if not conversions:
+                logger.info("Nessuna assenza speciale da convertire")
+                return
+
+            logger.info(f"Convertite {len(conversions)} assenze speciali in congedo ordinario")
+
+            # Notifica email HR (best-effort)
+            try:
+                rows_html = "".join(
+                    f"<tr>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['employee_name']}</td>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['date_start'].strftime('%d.%m.%Y')} - {c['date_end'].strftime('%d.%m.%Y')}</td>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['special_reason'] or '-'}</td>"
+                    f"<td style='padding:6px;border:1px solid #e5e7eb;'>{c['docs_deadline'].strftime('%d.%m.%Y') if c['docs_deadline'] else '-'}</td>"
+                    f"</tr>"
+                    for c in conversions
+                )
+                body = f"""
+                <html><body style="font-family: Arial, sans-serif;">
+                    <h2 style="color: #dc2626;">Conversie automat\u0103: absen\u021be speciale f\u0103r\u0103 documenta\u021bie</h2>
+                    <p>Urm\u0103toarele cereri de absen\u021b\u0103 pentru motive speciale au fost anulate
+                    (documenta\u021bia nu a fost prezentat\u0103 \u00een termen de 5 zile de la cerere) \u0219i
+                    transformate \u00een zile de concediu odihn\u0103:</p>
+                    <table style="border-collapse: collapse;">
+                        <tr>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Angajat</th>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Perioada</th>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Motiv</th>
+                            <th style="padding:6px;border:1px solid #e5e7eb;">Scaden\u021b\u0103 documenta\u021bie</th>
+                        </tr>
+                        {rows_html}
+                    </table>
+                    <p style="font-size:12px;color:#718096;">Email generat automat de sistemul Kiosk HR.</p>
+                </body></html>
+                """
+                subject = f"[Kiosk HR] {len(conversions)} absen\u021be speciale convertite \u00een concediu odihn\u0103"
+                for recipient in self.recipients:
+                    try:
+                        self.email_sender.send_email(recipient, subject, body, is_html=True)
+                    except Exception as mail_err:
+                        logger.error(f"Errore invio notifica conversione a {recipient}: {mail_err}")
+            except Exception as mail_err:
+                logger.error(f"Errore preparazione email notifica conversioni: {mail_err}")
+
+        except Exception as e:
+            logger.error(f"Errore nel controllo assenze speciali: {e}")
+
     def run_service(self):
         """
         Avvia il servizio schedulato
@@ -551,6 +617,10 @@ class KioskReportsService:
         # Schedula controllo giornaliero alle 08:00
         # Il report viene inviato solo il primo giorno del mese
         schedule.every().day.at("08:00").do(self.check_and_send_monthly_report)
+
+        # Sweep giornaliero assenze speciali: conversione in congedo ordinario
+        # quando la documentazione non è stata presentata entro 5 giorni
+        schedule.every().day.at("06:30").do(self.check_and_convert_special_absences)
 
         # Per test: esegui subito (commentare in produzione)
         # logger.info("Esecuzione test immediata...")

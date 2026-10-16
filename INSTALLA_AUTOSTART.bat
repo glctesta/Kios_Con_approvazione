@@ -1,175 +1,214 @@
 @echo off
 REM ============================================================
-REM INSTALLA_AUTOSTART.bat
-REM Registra il Kiosk HR Watchdog nel Task Scheduler di Windows
-REM in modo che parta automaticamente ad ogni avvio del sistema,
-REM anche dopo un'interruzione di corrente.
+REM INSTALLA_AUTOSTART.bat  (v2 - SENZA DIRITTI DI AMMINISTRATORE)
+REM ------------------------------------------------------------
+REM Registra la ripartenza automatica del kiosk HR al logon di
+REM Windows, con doppia copertura:
+REM   1) chiave di registro HKCU\...\Run  (per-utente, no admin)
+REM   2) script nella cartella "Esecuzione automatica" (no admin)
+REM Il single-instance lock del supervisore evita doppie partenze.
 REM
-REM RICHIEDE: privilegi di Amministratore
+REM Catena registrata:
+REM   Logon -> wscript AVVIO_KIOSK.vbs (nascosto)
+REM         -> pythonw kiosk_supervisor.py
+REM         -> app.py (Flask, riavviato se crasha)
+REM         -> Chrome/Edge --kiosk http://localhost:3000
+REM
+REM La procedura e' IDEMPOTENTE: rieseguibile senza danni.
+REM Tocca SOLO l'hive HKCU dell'utente corrente (sicuro, niente
+REM admin, niente modifiche di sistema).
 REM ============================================================
 
 setlocal EnableDelayedExpansion
+set "INSTALL_LOG=%~dp0logs\autostart_install.log"
+if not exist "%~dp0logs" mkdir "%~dp0logs"
 
 echo.
 echo ============================================================
-echo   KIOSK HR - INSTALLAZIONE AVVIO AUTOMATICO
+echo   KIOSK HR - INSTALLAZIONE AVVIO AUTOMATICO (senza admin)
 echo ============================================================
 echo.
-
-REM --- Verifica privilegi amministratore ---
-net session >nul 2>&1
-if %errorLevel% neq 0 (
-    echo [ERRORE] Questo script deve essere eseguito come Amministratore!
-    echo Fai clic destro sul file ^> "Esegui come amministratore"
-    echo.
-    pause
-    exit /b 1
-)
 
 REM --- Percorsi ---
 set "KIOSK_DIR=%~dp0"
-REM Rimuovi backslash finale se presente
-if "%KIOSK_DIR:~-1%"=="\" set "KIOSK_DIR=%KIOSK_DIR:~0,-1%"
+if "%KIOSK_DIR:~-1%"=="\" set "KIOSK_DIR=%KIOSK_DIR:~0,-1)"
+set "VBS_LAUNCHER=%KIOSK_DIR%\AVVIO_KIOSK.vbs"
+set "SUPERVISOR=%KIOSK_DIR%\kiosk_supervisor.py"
+set "RUN_KEY=HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
+set "RUN_VALUE=KioskHR_Autostart"
+set "STARTUP_DIR=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
+set "STARTUP_VBS=%STARTUP_DIR%\KioskHR_Autostart.vbs"
 
-set "WATCHDOG_SCRIPT=%KIOSK_DIR%\kiosk_watchdog.py"
-set "TASK_NAME=KioskHR_Watchdog"
-set "TASK_DESCR=Kiosk HR - Avvio automatico server Flask con watchdog. Riparte dopo interruzione corrente."
-
-REM Trova Python (prima venv, poi sistema)
-set "PYTHON_EXE="
-if exist "%KIOSK_DIR%\venv\Scripts\pythonw.exe" (
-    set "PYTHON_EXE=%KIOSK_DIR%\venv\Scripts\pythonw.exe"
-) else if exist "%KIOSK_DIR%\venv\Scripts\python.exe" (
-    set "PYTHON_EXE=%KIOSK_DIR%\venv\Scripts\python.exe"
-) else (
-    for /f "delims=" %%i in ('where pythonw.exe 2^>nul') do (
-        if not defined PYTHON_EXE set "PYTHON_EXE=%%i"
-    )
-)
-if not defined PYTHON_EXE (
-    for /f "delims=" %%i in ('where python.exe 2^>nul') do (
-        if not defined PYTHON_EXE set "PYTHON_EXE=%%i"
-    )
-)
-
-if not defined PYTHON_EXE (
-    echo [ERRORE] Python non trovato!
-    echo Installa Python oppure crea il venv nella cartella del progetto.
-    pause
-    exit /b 1
-)
-
-echo Directory Kiosk  : %KIOSK_DIR%
-echo Watchdog script  : %WATCHDOG_SCRIPT%
-echo Python           : %PYTHON_EXE%
-echo Task Scheduler   : %TASK_NAME%
+echo Directory kiosk   : %KIOSK_DIR%
+echo Launcher          : %VBS_LAUNCHER%
+echo Supervisore       : %SUPERVISOR%
 echo.
 
-REM --- Verifica watchdog ---
-if not exist "%WATCHDOG_SCRIPT%" (
-    echo [ERRORE] File kiosk_watchdog.py non trovato in:
-    echo          %WATCHDOG_SCRIPT%
-    pause
-    exit /b 1
+REM --- Verifica prerequisiti (NO admin richiesto) ---
+set "ERRORS=0"
+
+if not exist "%VBS_LAUNCHER%" (
+    echo [ERRORE] AVVIO_KIOSK.vbs non trovato!
+    set /a ERRORS+=1
+)
+if not exist "%SUPERVISOR%" (
+    echo [ERRORE] kiosk_supervisor.py non trovato!
+    set /a ERRORS+=1
+)
+if not exist "%KIOSK_DIR%\app.py" (
+    echo [ERRORE] app.py non trovato!
+    set /a ERRORS+=1
 )
 
-REM --- Rimuovi task precedente se esiste ---
-schtasks /query /tn "%TASK_NAME%" >nul 2>&1
-if %errorLevel% equ 0 (
-    echo Task esistente trovato. Rimozione in corso...
-    schtasks /delete /tn "%TASK_NAME%" /f >nul
-    echo Task rimosso.
-)
-
-REM --- Crea il task XML per configurazione avanzata ---
-set "XML_FILE=%TEMP%\kiosk_task.xml"
-
-(
-echo ^<?xml version="1.0" encoding="UTF-16"?^>
-echo ^<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"^>
-echo   ^<RegistrationInfo^>
-echo     ^<Description^>%TASK_DESCR%^</Description^>
-echo   ^</RegistrationInfo^>
-echo   ^<Triggers^>
-echo     ^<BootTrigger^>
-echo       ^<Enabled^>true^</Enabled^>
-echo       ^<Delay^>PT30S^</Delay^>
-echo     ^</BootTrigger^>
-echo   ^</Triggers^>
-echo   ^<Principals^>
-echo     ^<Principal id="Author"^>
-echo       ^<LogonType^>S4U^</LogonType^>
-echo       ^<RunLevel^>HighestAvailable^</RunLevel^>
-echo     ^</Principal^>
-echo   ^</Principals^>
-echo   ^<Settings^>
-echo     ^<MultipleInstancesPolicy^>IgnoreNew^</MultipleInstancesPolicy^>
-echo     ^<DisallowStartIfOnBatteries^>false^</DisallowStartIfOnBatteries^>
-echo     ^<StopIfGoingOnBatteries^>false^</StopIfGoingOnBatteries^>
-echo     ^<AllowHardTerminate^>true^</AllowHardTerminate^>
-echo     ^<StartWhenAvailable^>true^</StartWhenAvailable^>
-echo     ^<RunOnlyIfNetworkAvailable^>false^</RunOnlyIfNetworkAvailable^>
-echo     ^<IdleSettings^>
-echo       ^<StopOnIdleEnd^>false^</StopOnIdleEnd^>
-echo       ^<RestartOnIdle^>false^</RestartOnIdle^>
-echo     ^</IdleSettings^>
-echo     ^<AllowStartOnDemand^>true^</AllowStartOnDemand^>
-echo     ^<Enabled^>true^</Enabled^>
-echo     ^<Hidden^>false^</Hidden^>
-echo     ^<RunOnlyIfIdle^>false^</RunOnlyIfIdle^>
-echo     ^<WakeToRun^>false^</WakeToRun^>
-echo     ^<ExecutionTimeLimit^>PT0S^</ExecutionTimeLimit^>
-echo     ^<Priority^>7^</Priority^>
-echo     ^<RestartOnFailure^>
-echo       ^<Interval^>PT1M^</Interval^>
-echo       ^<Count^>10^</Count^>
-echo     ^</RestartOnFailure^>
-echo   ^</Settings^>
-echo   ^<Actions Context="Author"^>
-echo     ^<Exec^>
-echo       ^<Command^>"%PYTHON_EXE%"^</Command^>
-echo       ^<Arguments^>"%WATCHDOG_SCRIPT%"^</Arguments^>
-echo       ^<WorkingDirectory^>%KIOSK_DIR%^</WorkingDirectory^>
-echo     ^</Exec^>
-echo   ^</Actions^>
-echo ^</Task^>
-) > "%XML_FILE%"
-
-REM --- Importa il task ---
-schtasks /create /tn "%TASK_NAME%" /xml "%XML_FILE%" /f
-del "%XML_FILE%" >nul 2>&1
-
+where wscript.exe >nul 2>&1
 if %errorLevel% neq 0 (
+    echo [ERRORE] wscript.exe non disponibile!
+    set /a ERRORS+=1
+)
+
+if %ERRORS% gtr 0 (
     echo.
-    echo [ERRORE] Registrazione task fallita.
-    echo Verifica i privilegi e riprova.
+    echo Installazione annullata: correggere gli errori sopra.
+    pause
+    exit /b 1
+)
+echo [OK] Prerequisiti verificati.
+
+REM --- Rimozione del vecchio task amministrativo (se presente) ---
+REM Il vecchio sistema usava un task schedulato con privilegi admin:
+REM senza admin la rimozione puo' fallire, in tal caso il single-instance
+REM lock del supervisore evita comunque doppie partenze del server.
+schtasks /query /tn "KioskHR_Watchdog" >nul 2>&1
+if %errorLevel% equ 0 (
+    echo.
+    echo Trovato il vecchio task 'KioskHR_Watchdog' (sistema precedente).
+    schtasks /delete /tn "KioskHR_Watchdog" /f >nul 2>&1
+    if !errorLevel! equ 0 (
+        echo [OK] Vecchio task rimosso.
+        echo [%date% %time%] Rimosso vecchio task KioskHR_Watchdog >> "%INSTALL_LOG%"
+    ) else (
+        echo [AVVISO] Impossibile rimuoverlo senza admin: verra' ignorato,
+        echo          ma per una pulizia completa eseguire una volta:
+        echo          schtasks /delete /tn KioskHR_Watchdog /f   ^(come admin^)
+    )
+)
+
+REM --- 1) Registrazione nella chiave HKCU Run (no admin) ---
+echo.
+echo [1/3] Registrazione in HKCU\...\Run...
+reg add "%RUN_KEY%" /v %RUN_VALUE% /t REG_SZ /d "wscript.exe //B //nologo \"%VBS_LAUNCHER%\"" /f >nul 2>&1
+if %errorLevel% neq 0 (
+    echo [ERRORE] Scrittura registro fallita!
     pause
     exit /b 1
 )
 
-REM --- Avvia subito senza aspettare il riavvio ---
+REM Verifica read-back: il valore deve puntare al nostro VBS
+reg query "%RUN_KEY%" /v %RUN_VALUE% 2>nul | findstr /C:"AVVIO_KIOSK.vbs" >nul
+if %errorLevel% neq 0 (
+    echo [ERRORE] Verifica registro fallita: valore non trovato o errato!
+    pause
+    exit /b 1
+)
+echo [OK] Chiave di registro scritta e verificata.
+
+REM --- 2) Copertura nella cartella Esecuzione automatica (no admin) ---
+echo [2/3] Copertura cartella 'Esecuzione automatica'...
+if not exist "%STARTUP_DIR%" mkdir "%STARTUP_DIR%"
+
+REM Genera la copia con percorso assoluto risolto in fase di installazione.
+REM Nota: Chr(34) = virgoletta; evita qualunque ambiguita' di quoting VBS/batch.
+> "%STARTUP_VBS%" (
+    echo ' KioskHR_Autostart - generato da INSTALLA_AUTOSTART.bat
+    echo ' Copia per-utente per la cartella Esecuzione automatica ^(no admin^)
+    echo Option Explicit
+    echo Dim fso, sh, py, cmd
+    echo Set fso = CreateObject^("Scripting.FileSystemObject"^)
+    echo Set sh  = CreateObject^("WScript.Shell"^)
+    echo If Not fso.FileExists^("%SUPERVISOR%"^) Then WScript.Quit 1
+    echo py = "%KIOSK_DIR%\venv\Scripts\pythonw.exe"
+    echo If Not fso.FileExists^(py^) Then py = "pythonw.exe"
+    echo sh.CurrentDirectory = "%KIOSK_DIR%"
+    echo cmd = Chr^(34^) ^& py ^& Chr^(34^) ^& " " ^& Chr^(34^) ^& "%SUPERVISOR%" ^& Chr^(34^)
+    echo sh.Run cmd, 0, False
+)
+
+if not exist "%STARTUP_VBS%" (
+    echo [ERRORE] Creazione file in Esecuzione automatica fallita!
+    pause
+    exit /b 1
+)
+echo [OK] Copia creata: %STARTUP_VBS%
+
+REM --- 3) Controllo autologon di Windows (sola lettura, informativo) ---
+echo [3/3] Controllo autologon di Windows...
+set "AUTOLOGON="
+for /f "usebackq delims=" %%v in (`powershell -NoProfile -Command "(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name AutoAdminLogon -ErrorAction SilentlyContinue).AutoAdminLogon" 2^>nul`) do set "AUTOLOGON=%%v"
+
+if "%AUTOLOGON%"=="1" (
+    echo [OK] Autologon ATTIVO: dopo uno spegnimento il kiosk riparte da solo.
+) else (
+    echo.
+    echo ***********************************************************
+    echo  [AVVISO] L'accesso automatico di Windows NON risulta attivo.
+    echo  Dopo uno spegnimento, Windows si ferma sulla schermata di
+    echo  login: l'autostart parte solo DOPO l'accesso dell'utente.
+    echo.
+    echo  Per il ripristino completamente automatico attivare una
+    echo  volta l'accesso automatico ^(richiede admin, operazione di
+    echo  sistema standard e non parte di questo installer^):
+    echo    netplwiz -^> utente kiosk -^> deseleziona
+    echo    'Gli utenti devono inserire un nome utente e una password'
+    echo ***********************************************************
+)
+
+REM --- Avvio immediato con verifica funzionale (opzionale) ---
 echo.
-echo Avvio immediato del watchdog...
-schtasks /run /tn "%TASK_NAME%"
-timeout /t 2 >nul
+choice /C SN /M "Avviare subito il kiosk per una verifica completa (S/N)"
+if errorlevel 2 goto :registro_log
+if errorlevel 1 goto :avvio_subito
+goto :registro_log
+
+:avvio_subito
+echo Avvio del supervisore in corso...
+wscript.exe //B //nologo "%VBS_LAUNCHER%"
+echo Attesa risposta del server (max 60 secondi)...
+set "HEALTH_OK=0"
+for /l %%i in (1,1,30) do (
+    if !HEALTH_OK!==0 (
+        powershell -NoProfile -Command "try { if ((Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/health' -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200) { exit 0 } } catch { exit 1 }" >nul 2>&1
+        if !errorLevel! equ 0 (
+            set "HEALTH_OK=1"
+        ) else (
+            timeout /t 2 /nobreak >nul
+        )
+    )
+)
+if %HEALTH_OK%==1 (
+    echo [OK] Server attivo su http://localhost:3000 — il browser kiosk si
+    echo      apre entro pochi secondi ^(il supervisore attende /api/health^).
+) else (
+    echo [AVVISO] Il server non ha ancora risposto entro 60s.
+    echo         Controllare logs\kiosk_supervisor.log e app_debug.log.
+)
+
+:registro_log
+echo [%date% %time%] INSTALL autostart: Run=%RUN_VALUE% VBS=%VBS_LAUNCHER% STARTUP=%STARTUP_VBS% AUTOLOGON=%AUTOLOGON% >> "%INSTALL_LOG%"
 
 echo.
 echo ============================================================
-echo   INSTALLAZIONE COMPLETATA CON SUCCESSO!
+echo   INSTALLAZIONE COMPLETATA
 echo ============================================================
 echo.
-echo Il server Kiosk HR si avviera' automaticamente:
-echo   - Ad ogni accensione del PC
-echo   - Dopo ogni interruzione di corrente
-echo   - Se il processo Flask crasha (watchdog lo rilancia)
+echo Il kiosk HR riparte automaticamente a ogni accesso di Windows:
+echo   - registro HKCU Run    : %RUN_VALUE%
+echo   - Esecuzione automatica : KioskHR_Autostart.vbs
+echo   - se il server crasha  : riavviato dal supervisore
+echo   - se il browser chiuso : riaperto in modalita' kiosk
 echo.
-echo Task registrato : %TASK_NAME%
-echo Log watchdog    : %KIOSK_DIR%\kiosk_watchdog.log
+echo Log supervisore     : logs\kiosk_supervisor.log
+echo Log installazione   : logs\autostart_install.log
 echo.
-echo Comandi utili:
-echo   Avvia subito  : schtasks /run /tn %TASK_NAME%
-echo   Ferma         : schtasks /end /tn %TASK_NAME%
-echo   Stato         : schtasks /query /tn %TASK_NAME%
-echo   Rimuovi       : esegui RIMUOVI_AUTOSTART.bat
+echo Per disinstallare: RIMUOVI_AUTOSTART.bat
 echo.
 pause

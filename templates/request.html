@@ -85,6 +85,15 @@
                             <div class="info-value" id="availableDays">-</div>
                         </div>
                     </div>
+
+                    <!-- Quota residua per tipi con limite annuo (urgenti / speciali) -->
+                    <div id="quotaInfo" class="info-card" style="display: none;">
+                        <div class="info-icon">📋</div>
+                        <div class="info-content">
+                            <div class="info-label" id="quotaLabel">Zile disponibile</div>
+                            <div class="info-value" id="quotaValue">-</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Tipo Assenza -->
@@ -97,6 +106,51 @@
                         <option value="">Selectați...</option>
                         <!-- Populated by JavaScript -->
                     </select>
+                </div>
+
+                <!-- Perioada de recuperare (solo per assenze urgenti) -->
+                <div class="form-group" id="urgentFieldsGroup" style="display: none;">
+                    <label for="urgentRecoveryPeriod" class="form-label">
+                        <span class="label-text">Perioada de recuperare *</span>
+                        <span class="label-helper">Zilele de absență urgentă trebuie recuperate (max. 10 zile/an)</span>
+                    </label>
+                    <select id="urgentRecoveryPeriod" name="urgentRecoveryPeriod" class="form-select">
+                        <option value="">Selectați...</option>
+                        <option value="MONTH">În luna solicitării</option>
+                        <option value="YEAR">Până la sfârșitul anului lucrător</option>
+                    </select>
+                </div>
+
+                <!-- Motiv special (solo per assenze speciali: deces, căsătorie etc.) -->
+                <div id="specialFieldsGroup" style="display: none;">
+                    <div class="form-group">
+                        <label for="specialReason" class="form-label">
+                            <span class="label-text">Motiv special *</span>
+                            <span class="label-helper">Max. 5 zile/an pentru motive speciale</span>
+                        </label>
+                        <select id="specialReason" name="specialReason" class="form-select">
+                            <option value="">Selectați...</option>
+                            <option value="Deces (membru familie)">Deces (membru familie)</option>
+                            <option value="Căsătorie">Căsătorie</option>
+                            <option value="Naștere copil">Naștere copil</option>
+                            <option value="Alt motiv special">Alt motiv special</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="specialReasonTextGroup" style="display: none;">
+                        <label for="specialReasonText" class="form-label">
+                            <span class="label-text">Detaliu motiv *</span>
+                            <span class="label-helper">Specificați motivul special</span>
+                        </label>
+                        <input type="text" id="specialReasonText" name="specialReasonText" class="form-input"
+                               maxlength="150" placeholder="Specificați motivul..." autocomplete="off">
+                    </div>
+                    <div class="result-warning" id="specialDocsWarning">
+                        <p><strong>⚠️ DOCUMENTAȚIE OBLIGATORIE:</strong></p>
+                        <p>Trebuie să prezentați documentele justificative la departamentul HR
+                           <strong>în termen de 5 zile</strong> de la data cererii.</p>
+                        <p>În lipsa documentației, cererea va fi anulată și transformată automat
+                           în zile de <strong>concediu odihnă</strong>.</p>
+                    </div>
                 </div>
 
                 <!-- Data Inizio -->
@@ -199,7 +253,8 @@
     </div>
 
     <script src="/static/js/inactivity-timeout.js"></script>
-        <script src="/static/js/time-fields.js"></script>`r`n<script src="/static/js/request.js"></script>
+    <script src="/static/js/time-fields.js"></script>
+    <script src="/static/js/request.js"></script>
 </body>
 
 </html>

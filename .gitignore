@@ -52,5 +52,8 @@ generated-image.png
 !requirements.txt
 *.ini
 
+# Le migrazioni SQL del progetto sono parte del codice
+!sql/*.sql
+
 # Visual Basic files
 *.vb
