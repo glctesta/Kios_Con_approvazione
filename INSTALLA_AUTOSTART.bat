@@ -31,7 +31,7 @@ echo.
 
 REM --- Percorsi ---
 set "KIOSK_DIR=%~dp0"
-if "%KIOSK_DIR:~-1%"=="\" set "KIOSK_DIR=%KIOSK_DIR:~0,-1)"
+if "%KIOSK_DIR:~-1%"=="\" set "KIOSK_DIR=%KIOSK_DIR:~0,-1%"
 set "VBS_LAUNCHER=%KIOSK_DIR%\AVVIO_KIOSK.vbs"
 set "SUPERVISOR=%KIOSK_DIR%\kiosk_supervisor.py"
 set "RUN_KEY=HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
@@ -81,7 +81,7 @@ REM lock del supervisore evita comunque doppie partenze del server.
 schtasks /query /tn "KioskHR_Watchdog" >nul 2>&1
 if %errorLevel% equ 0 (
     echo.
-    echo Trovato il vecchio task 'KioskHR_Watchdog' (sistema precedente).
+    echo Trovato il vecchio task 'KioskHR_Watchdog' ^(sistema precedente^).
     schtasks /delete /tn "KioskHR_Watchdog" /f >nul 2>&1
     if !errorLevel! equ 0 (
         echo [OK] Vecchio task rimosso.
